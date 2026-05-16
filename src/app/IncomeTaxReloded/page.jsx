@@ -1,0 +1,3281 @@
+"use client";
+import React, { Suspense, useEffect, useState } from "react";
+import { useGlobalContext } from "../../context/Store";
+import { useRouter } from "next/navigation";
+import {
+  IndianFormat,
+  ptaxCalc,
+  randBetween,
+  roundSo,
+  CalculateIncomeTax,
+  createDownloadLink,
+  createYearArray,
+  readCSVFileV2,
+} from "../../modules/calculatefunctions";
+import { firestore } from "../../context/FirebaseContext";
+import Loader from "../../components/Loader";
+import axios from "axios";
+import { collection, doc, getDocs, query, updateDoc } from "firebase/firestore";
+import { ToastContainer, toast } from "react-toastify";
+import dynamic from "next/dynamic";
+import IncomeTaxNew2025 from "../../pdfs/IncomeTaxNew2025";
+import IncomeTaxOld2025 from "../../pdfs/IncomeTaxOld2025";
+import Form16New from "../../pdfs/Form16New";
+import Form16NewRegime from "../../pdfs/Form16NewRegime";
+export default function IncomeTaxReloded() {
+  const PDFDownloadLink = dynamic(
+    async () =>
+      await import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
+    {
+      ssr: false,
+      loading: () => <p className="m-0 p-0">Please Wait...</p>,
+    },
+  );
+  const router = useRouter();
+  const {
+    deductionState,
+    setDeductionState,
+    teachersState,
+    setSalaryState,
+    salaryState,
+    setIndSalaryState,
+    state,
+    USER,
+  } = useGlobalContext();
+  const [salary, setSalary] = useState([]);
+  const [loader, setLoader] = useState(false);
+  const [filteredData, setFilteredData] = useState([]);
+  const [search, setSearch] = useState("");
+  const [schSearch, setSchSearch] = useState("");
+  const [showDeductionForm, setShowDeductionForm] = useState(false);
+  const [showForm16, setShowForm16] = useState(false);
+  const [showForm16New, setShowForm16New] = useState(false);
+  const [filterClicked, setFilterClicked] = useState(false);
+  const [teacherDeduction, setTeacherDeduction] = useState({
+    id: "",
+    tname: "",
+    hbLoanPrincipal: "",
+    hbLoanInterest: "",
+    lic: "",
+    ulip: "",
+    ppf: "",
+    nsc: "",
+    nscInterest: "",
+    tutionFee: "",
+    sukanya: "",
+    stampDuty: "",
+    mediclaim: "",
+    terminalDisease: "",
+    handicapTreatment: "",
+    educationLoan: "",
+    charity: "",
+    disability: "",
+    rgSaving: "",
+    otherIncome: "",
+    fd: "",
+    tds: "",
+  });
+  const [newITData, setNewITDa] = useState({
+    id: "",
+    tname: "",
+    fname: "",
+    school: "",
+    pan: "",
+    phone: "",
+    desig: "",
+    gender: "",
+    thisYear: "",
+    prevYear: "",
+    nextYear: "",
+    finYear: "",
+    marchSalary: "",
+    marchBasic: "",
+    marchAddl: "",
+    marchDA: "",
+    marchHRA: "",
+    marchMA: "",
+    marchGross: "",
+    marchGPF: "",
+    marchGSLI: "",
+    bonus: "",
+    marchPTax: "",
+    aprilSalary: "",
+    aprilBasic: "",
+    aprilAddl: "",
+    aprilDA: "",
+    aprilHRA: "",
+    aprilMA: "",
+    aprilGross: "",
+    aprilGPF: "",
+    aprilGSLI: "",
+    aprilPTax: "",
+    maySalary: "",
+    mayBasic: "",
+    mayAddl: "",
+    mayDA: "",
+    mayHRA: "",
+    mayMA: "",
+    mayGross: "",
+    mayGPF: "",
+    mayGSLI: "",
+    mayPTax: "",
+    juneSalary: "",
+    juneBasic: "",
+    juneAddl: "",
+    juneDA: "",
+    juneHRA: "",
+    juneMA: "",
+    juneGross: "",
+    juneGPF: "",
+    juneGSLI: "",
+    junePTax: "",
+    julySalary: "",
+    julyBasic: "",
+    julyAddl: "",
+    julyDA: "",
+    aprilIR: "",
+    julyHRA: "",
+    julyMA: "",
+    julyGross: "",
+    julyGPF: "",
+    julyGSLI: "",
+    julyPTax: "",
+    augustSalary: "",
+    augustBasic: "",
+    augustAddl: "",
+    augustDA: "",
+    augustHRA: "",
+    augustMA: "",
+    augustGross: "",
+    augustGPF: "",
+    augustGSLI: "",
+    augustPTax: "",
+    septemberSalary: "",
+    septemberBasic: "",
+    septemberAddl: "",
+    septemberDA: "",
+    septemberHRA: "",
+    septemberMA: "",
+    septemberGross: "",
+    septemberGPF: "",
+    septemberGSLI: "",
+    septemberPTax: "",
+    octoberSalary: "",
+    octoberBasic: "",
+    octoberAddl: "",
+    octoberDA: "",
+    octoberHRA: "",
+    octoberMA: "",
+    octoberGross: "",
+    octoberGPF: "",
+    octoberGSLI: "",
+    octoberPTax: "",
+    novemberSalary: "",
+    novemberBasic: "",
+    novemberAddl: "",
+    novemberDA: "",
+    novemberHRA: "",
+    novemberMA: "",
+    novemberGross: "",
+    novemberGPF: "",
+    novemberGSLI: "",
+    novemberPTax: "",
+    decemberSalary: "",
+    decemberBasic: "",
+    decemberAddl: "",
+    decemberDA: "",
+    decemberHRA: "",
+    decemberMA: "",
+    decemberGross: "",
+    decemberGPF: "",
+    decemberGSLI: "",
+    decemberPTax: "",
+    januarySalary: "",
+    januaryBasic: "",
+    januaryAddl: "",
+    januaryDA: "",
+    januaryHRA: "",
+    januaryMA: "",
+    januaryGross: "",
+    januaryGPF: "",
+    januaryGSLI: "",
+    januaryPTax: "",
+    februarySalary: "",
+    februaryBasic: "",
+    februaryAddl: "",
+    februaryDA: "",
+    februaryHRA: "",
+    februaryMA: "",
+    februaryGross: "",
+    februaryGPF: "",
+    februaryGSLI: "",
+    februaryPTax: "",
+    grossBasic: "",
+    grossAddl: "",
+    grossDA: "",
+    grossHRA: "",
+    grossMA: "",
+    GrossPAY: "",
+    grossGPF: "",
+    grossGSLI: "",
+    grossPTax: "",
+    AllGross: "",
+    GrossTotalIncome: "",
+    TotalRoundOffIncome: "",
+    CalculatedIT: "",
+    eduCess: "",
+    AddedEduCess: "",
+    BankInterest: "",
+    tds: "",
+    GrossRelief: "",
+    IncomeTaxAfterRelief: "",
+    ThirtyIT: "",
+    ThirtyITTax: "",
+    TwentyIT: "",
+    TwentyITTax: "",
+    FifteenIT: "",
+    FifteenITTax: "",
+    TenIT: "",
+    TenITTax: "",
+    FiveIT: "",
+    FiveITTax: "",
+    marchNetpay: "",
+    aprilNetpay: "",
+    mayNetpay: "",
+    juneNetpay: "",
+    julyNetpay: "",
+    augustNetpay: "",
+    septemberNetpay: "",
+    octoberNetpay: "",
+    novemberNetpay: "",
+    decemberNetpay: "",
+    januaryNetpay: "",
+    februaryNetpay: "",
+    grossNetpay: "",
+    TotalGross: "",
+    GrossArrear: "",
+  });
+  const [oldITData, setOldITData] = useState({
+    id: "",
+    tname: "",
+    fname: "",
+    school: "",
+    pan: "",
+    phone: "",
+    disability: "",
+    desig: "",
+    gender: "",
+    thisYear: "",
+    nextYear: "",
+    prevYear: "",
+    finYear: "",
+    BankInterest: "",
+    teacherDeduction: "",
+    hbLoanPrincipal: "",
+    hbLoanInterest: "",
+    lic: "",
+    ulip: "",
+    ppf: "",
+    nsc: "",
+    nscInterest: "",
+    tutionFee: "",
+    sukanya: "",
+    stampDuty: "",
+    mediclaim: "",
+    terminalDisease: "",
+    handicapTreatment: "",
+    educationLoan: "",
+    charity: "",
+    disabilityDeduction: "",
+    rgSaving: "",
+    otherIncome: "",
+    fd: "",
+    tds: "",
+    marchSalary: "",
+    marchBasic: "",
+    marchAddl: "",
+    marchDA: "",
+    marchHRA: "",
+    marchMA: "",
+    marchGross: "",
+    marchGPF: "",
+    marchGSLI: "",
+    bonus: "",
+    marchPTax: "",
+    aprilSalary: "",
+    aprilBasic: "",
+    aprilAddl: "",
+    aprilDA: "",
+    aprilHRA: "",
+    aprilMA: "",
+    aprilGross: "",
+    aprilGPF: "",
+    aprilGSLI: "",
+    aprilPTax: "",
+    maySalary: "",
+    mayBasic: "",
+    mayAddl: "",
+    mayDA: "",
+    mayHRA: "",
+    mayMA: "",
+    mayGross: "",
+    mayGPF: "",
+    mayGSLI: "",
+    mayPTax: "",
+    juneSalary: "",
+    juneBasic: "",
+    juneAddl: "",
+    juneDA: "",
+    juneHRA: "",
+    juneMA: "",
+    juneGross: "",
+    juneGPF: "",
+    juneGSLI: "",
+    junePTax: "",
+    julySalary: "",
+    julyBasic: "",
+    julyAddl: "",
+    julyDA: "",
+    aprilIR: "",
+    julyHRA: "",
+    julyMA: "",
+    julyGross: "",
+    julyGPF: "",
+    julyGSLI: "",
+    julyPTax: "",
+    augustSalary: "",
+    augustBasic: "",
+    augustAddl: "",
+    augustDA: "",
+    augustHRA: "",
+    augustMA: "",
+    augustGross: "",
+    augustGPF: "",
+    augustGSLI: "",
+    augustPTax: "",
+    septemberSalary: "",
+    septemberBasic: "",
+    septemberAddl: "",
+    septemberDA: "",
+    septemberHRA: "",
+    septemberMA: "",
+    septemberGross: "",
+    septemberGPF: "",
+    septemberGSLI: "",
+    septemberPTax: "",
+    octoberSalary: "",
+    octoberBasic: "",
+    octoberAddl: "",
+    octoberDA: "",
+    octoberHRA: "",
+    octoberMA: "",
+    octoberGross: "",
+    octoberGPF: "",
+    octoberGSLI: "",
+    octoberPTax: "",
+    novemberSalary: "",
+    novemberBasic: "",
+    novemberAddl: "",
+    novemberDA: "",
+    novemberHRA: "",
+    novemberMA: "",
+    novemberGross: "",
+    novemberGPF: "",
+    novemberGSLI: "",
+    novemberPTax: "",
+    decemberSalary: "",
+    decemberBasic: "",
+    decemberAddl: "",
+    decemberDA: "",
+    decemberHRA: "",
+    decemberMA: "",
+    decemberGross: "",
+    decemberGPF: "",
+    decemberGSLI: "",
+    decemberPTax: "",
+    januarySalary: "",
+    januaryBasic: "",
+    januaryAddl: "",
+    januaryDA: "",
+    januaryHRA: "",
+    januaryMA: "",
+    januaryGross: "",
+    januaryGPF: "",
+    januaryGSLI: "",
+    januaryPTax: "",
+    februarySalary: "",
+    februaryBasic: "",
+    februaryAddl: "",
+    februaryDA: "",
+    februaryHRA: "",
+    februaryMA: "",
+    februaryGross: "",
+    februaryGPF: "",
+    februaryGSLI: "",
+    februaryPTax: "",
+    grossBasic: "",
+    grossAddl: "",
+    grossDA: "",
+    grossHRA: "",
+    grossMA: "",
+    GrossPAY: "",
+    grossGPF: "",
+    grossGSLI: "",
+    grossPTax: "",
+    AllGross: "",
+    GrossTotalIncome: "",
+    deductionVIA: "",
+    limitVIA: "",
+    OtherVIA: "",
+    TotalIncome: "",
+    TotalRoundOffIncome: "",
+    CalculatedIT: "",
+    isUnderRebate: "",
+    eduCess: "",
+    AddedEduCess: "",
+    TotalGross: "",
+    GrossArrear: "",
+    marchNetpay: "",
+    aprilNetpay: "",
+    mayNetpay: "",
+    juneNetpay: "",
+    julyNetpay: "",
+    augustNetpay: "",
+    septemberNetpay: "",
+    octoberNetpay: "",
+    novemberNetpay: "",
+    decemberNetpay: "",
+    januaryNetpay: "",
+    februaryNetpay: "",
+    grossNetpay: "",
+  });
+  const [TeacherData, setTeacherData] = useState({
+    id: "",
+    tname: "",
+    school: "",
+    pan: "",
+    phone: "",
+    disability: "",
+    desig: "",
+  });
+  const date = new Date();
+  const [thisYear, setThisYear] = useState(date.getFullYear());
+  const [nextYear, setNextYear] = useState(date.getFullYear() + 1);
+  const [prevYear, setPrevYear] = useState(date.getFullYear() - 1);
+  const [finYear, setFinYear] = useState(`${thisYear}-${nextYear}`);
+  const yearArray = createYearArray(2023);
+  const [showYearSelection, setShowYearSelection] = useState(true);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [showOldModal, setShowOldModal] = useState(false);
+  const [march, setMarch] = useState([]);
+  const [april, setApril] = useState([]);
+  const [may, setMay] = useState([]);
+  const [june, setJune] = useState([]);
+  const [july, setJuly] = useState([]);
+  const [august, setAugust] = useState([]);
+  const [september, setSeptember] = useState([]);
+  const [october, setOctober] = useState([]);
+  const [november, setNovember] = useState([]);
+  const [december, setDecember] = useState([]);
+  const [january, setJanuary] = useState([]);
+  const [february, setFebruary] = useState([]);
+  const [showBnkInt, setShowBnkInt] = useState(false);
+  const [BankInterest, setBankInterest] = useState(randBetween(1200, 2000));
+  const [IntFrDeposit, setIntFrDeposit] = useState(0);
+  const calCulateOldIT = async (data, isBulk = false) => {
+    const { id, tname, school, pan, disability, desig, gender, fname, phone } =
+      data;
+    const marchSalary = march.filter((el) => el.id == id)[0];
+    const marchArrear = marchSalary?.arrear;
+    const marchBasic = marchSalary?.basic;
+    const marchAddl = marchSalary?.addl;
+    const marchDA = Math.round(marchSalary?.basic * marchSalary?.daPercent);
+    const marchHRA =
+      marchSalary?.hraPercent > 10
+        ? marchSalary?.hraPercent
+        : Math.round(marchSalary?.basic * marchSalary?.hraPercent);
+    const marchMA = marchSalary?.ma;
+    const marchGross = marchBasic + marchDA + marchHRA + marchAddl + marchMA;
+    const marchGPF = marchSalary?.gpf;
+    const marchGSLI = marchSalary?.gsli;
+    const bonus = marchSalary?.bonus;
+    const marchPTax = disability == "YES" ? 0 : ptaxCalc(marchGross);
+    const marchNetpay = marchGross - marchGPF - marchGSLI - marchPTax;
+    const aprilSalary = april.filter((el) => el.id == id)[0];
+    const aprilArrear = aprilSalary?.arrear;
+    const aprilBasic = aprilSalary?.basic;
+    const aprilAddl = aprilSalary?.addl;
+    const aprilDA = Math.round(aprilSalary?.basic * aprilSalary?.daPercent);
+    const aprilHRA =
+      aprilSalary?.hraPercent > 10
+        ? aprilSalary?.hraPercent
+        : Math.round(aprilSalary?.basic * aprilSalary?.hraPercent);
+    const aprilMA = aprilSalary?.ma;
+    const aprilGross = aprilBasic + aprilDA + aprilHRA + aprilAddl + aprilMA;
+    const aprilGPF = aprilSalary?.gpf;
+    const aprilGSLI = aprilSalary?.gsli;
+    const aprilPTax = disability == "YES" ? 0 : ptaxCalc(aprilGross);
+    const aprilNetpay = aprilGross - aprilGPF - aprilGSLI - aprilPTax;
+    const maySalary = may.filter((el) => el.id == id)[0];
+    const mayArrear = maySalary?.arrear;
+    const mayBasic = maySalary?.basic;
+    const mayAddl = maySalary?.addl;
+    const mayDA = Math.round(maySalary?.basic * maySalary?.daPercent);
+    const mayHRA =
+      maySalary?.hraPercent > 10
+        ? maySalary?.hraPercent
+        : Math.round(maySalary?.basic * maySalary?.hraPercent);
+    const mayMA = maySalary?.ma;
+    const mayGross = mayBasic + mayDA + mayHRA + mayAddl + mayMA;
+    const mayGPF = maySalary?.gpf;
+    const mayGSLI = maySalary?.gsli;
+    const mayPTax = disability == "YES" ? 0 : ptaxCalc(mayGross);
+    const mayNetpay = mayGross - mayGPF - mayGSLI - mayPTax;
+    const juneSalary = june.filter((el) => el.id == id)[0];
+    const juneArrear = juneSalary?.arrear;
+    const juneBasic = juneSalary?.basic;
+    const juneAddl = juneSalary?.addl;
+    const juneDA = Math.round(juneSalary?.basic * juneSalary?.daPercent);
+    const juneHRA =
+      juneSalary?.hraPercent > 10
+        ? juneSalary?.hraPercent
+        : Math.round(juneSalary?.basic * juneSalary?.hraPercent);
+    const juneMA = juneSalary?.ma;
+    const juneGross = juneBasic + juneDA + juneHRA + juneAddl + juneMA;
+    const juneGPF = juneSalary?.gpf;
+    const juneGSLI = juneSalary?.gsli;
+    const junePTax = disability == "YES" ? 0 : ptaxCalc(juneGross);
+    const juneNetpay = juneGross - juneGPF - juneGSLI - junePTax;
+    const julySalary = july.filter((el) => el.id == id)[0];
+    const julyArrear = julySalary?.arrear;
+    const julyBasic = julySalary?.basic;
+    const julyAddl = julySalary?.addl;
+    const julyDA = Math.round(julySalary?.basic * julySalary?.daPercent);
+    const aprilIR =
+      thisYear == 2024 ? Math.round(aprilSalary?.basic * 0.04) : 0;
+    const julyHRA =
+      julySalary?.hraPercent > 10
+        ? julySalary?.hraPercent
+        : Math.round(julySalary?.basic * julySalary?.hraPercent);
+    const julyMA = julySalary?.ma;
+    const julyGross =
+      julyBasic + julyDA + julyHRA + julyAddl + julyMA + aprilIR;
+    const julyGPF = julySalary?.gpf;
+    const julyGSLI = julySalary?.gsli;
+    const julyPTax = disability == "YES" ? 0 : ptaxCalc(julyGross);
+    const julyNetpay = julyGross - julyGPF - julyGSLI - julyPTax;
+    const augustSalary = august.filter((el) => el.id == id)[0];
+    const augustArrear = augustSalary?.arrear;
+    const augustBasic = augustSalary?.basic;
+    const augustAddl = augustSalary?.addl;
+    const augustDA = Math.round(augustSalary?.basic * augustSalary?.daPercent);
+    const augustHRA =
+      augustSalary?.hraPercent > 10
+        ? augustSalary?.hraPercent
+        : Math.round(augustSalary?.basic * augustSalary?.hraPercent);
+    const augustMA = augustSalary?.ma;
+    const augustGross =
+      augustBasic + augustDA + augustHRA + augustAddl + augustMA;
+    const augustGPF = augustSalary?.gpf;
+    const augustGSLI = augustSalary?.gsli;
+    const augustPTax = disability == "YES" ? 0 : ptaxCalc(augustGross);
+    const augustNetpay = augustGross - augustGPF - augustGSLI - augustPTax;
+    const septemberSalary = september.filter((el) => el.id == id)[0];
+    const septemberArrear = septemberSalary?.arrear;
+    const septemberBasic = septemberSalary?.basic;
+    const septemberAddl = septemberSalary?.addl;
+    const septemberDA = Math.round(
+      septemberSalary?.basic * septemberSalary?.daPercent,
+    );
+    const septemberHRA =
+      septemberSalary?.hraPercent > 10
+        ? septemberSalary?.hraPercent
+        : Math.round(septemberSalary?.basic * septemberSalary?.hraPercent);
+    const septemberMA = septemberSalary?.ma;
+    const septemberGross =
+      septemberBasic + septemberDA + septemberHRA + septemberAddl + septemberMA;
+    const septemberGPF = septemberSalary?.gpf;
+    const septemberGSLI = septemberSalary?.gsli;
+    const septemberPTax = disability == "YES" ? 0 : ptaxCalc(septemberGross);
+    const septemberNetpay =
+      septemberGross - septemberGPF - septemberGSLI - septemberPTax;
+    const octoberSalary = october.filter((el) => el.id == id)[0];
+    const octoberArrear = octoberSalary?.arrear;
+    const octoberBasic = octoberSalary?.basic;
+    const octoberAddl = octoberSalary?.addl;
+    const octoberDA = Math.round(
+      octoberSalary?.basic * octoberSalary?.daPercent,
+    );
+    const octoberHRA =
+      octoberSalary?.hraPercent > 10
+        ? octoberSalary?.hraPercent
+        : Math.round(octoberSalary?.basic * octoberSalary?.hraPercent);
+    const octoberMA = octoberSalary?.ma;
+    const octoberGross =
+      octoberBasic + octoberDA + octoberHRA + octoberAddl + octoberMA;
+    const octoberGPF = octoberSalary?.gpf;
+    const octoberGSLI = octoberSalary?.gsli;
+    const octoberPTax = disability == "YES" ? 0 : ptaxCalc(octoberGross);
+    const octoberNetpay = octoberGross - octoberGPF - octoberGSLI - octoberPTax;
+    const novemberSalary = november.filter((el) => el.id == id)[0];
+    const novemberArrear = novemberSalary?.arrear;
+    const novemberBasic = novemberSalary?.basic;
+    const novemberAddl = novemberSalary?.addl;
+    const novemberDA = Math.round(
+      novemberSalary?.basic * novemberSalary?.daPercent,
+    );
+    const novemberHRA =
+      novemberSalary?.hraPercent > 10
+        ? novemberSalary?.hraPercent
+        : Math.round(novemberSalary?.basic * novemberSalary?.hraPercent);
+    const novemberMA = novemberSalary?.ma;
+    const novemberGross =
+      novemberBasic + novemberDA + novemberHRA + novemberAddl + novemberMA;
+    const novemberGPF = novemberSalary?.gpf;
+    const novemberGSLI = novemberSalary?.gsli;
+    const novemberPTax = disability == "YES" ? 0 : ptaxCalc(novemberGross);
+    const novemberNetpay =
+      novemberGross - novemberGPF - novemberGSLI - novemberPTax;
+    const decemberSalary = december.filter((el) => el.id == id)[0];
+    const decemberArrear = decemberSalary?.arrear;
+    const decemberBasic = decemberSalary?.basic;
+    const decemberAddl = decemberSalary?.addl;
+    const decemberDA = Math.round(
+      decemberSalary?.basic * decemberSalary?.daPercent,
+    );
+    const decemberHRA =
+      decemberSalary?.hraPercent > 10
+        ? decemberSalary?.hraPercent
+        : Math.round(decemberSalary?.basic * decemberSalary?.hraPercent);
+    const decemberMA = decemberSalary?.ma;
+    const decemberGross =
+      decemberBasic + decemberDA + decemberHRA + decemberAddl + decemberMA;
+    const decemberGPF = decemberSalary?.gpf;
+    const decemberGSLI = decemberSalary?.gsli;
+    const decemberPTax = disability == "YES" ? 0 : ptaxCalc(decemberGross);
+    const decemberNetpay =
+      decemberGross - decemberGPF - decemberGSLI - decemberPTax;
+    const januarySalary = january.filter((el) => el.id == id)[0];
+    const januaryArrear = januarySalary?.arrear;
+    const januaryBasic = januarySalary?.basic;
+    const januaryAddl = januarySalary?.addl;
+    const januaryDA = Math.round(
+      januarySalary?.basic * januarySalary?.daPercent,
+    );
+    const januaryHRA =
+      januarySalary?.hraPercent > 10
+        ? januarySalary?.hraPercent
+        : Math.round(januarySalary?.basic * januarySalary?.hraPercent);
+    const januaryMA = januarySalary?.ma;
+    const januaryGross =
+      januaryBasic + januaryDA + januaryHRA + januaryAddl + januaryMA;
+    const januaryGPF = januarySalary?.gpf;
+    const januaryGSLI = januarySalary?.gsli;
+    const januaryPTax = disability == "YES" ? 0 : ptaxCalc(januaryGross);
+    const januaryNetpay = januaryGross - januaryGPF - januaryGSLI - januaryPTax;
+    const februarySalary = february.filter((el) => el.id == id)[0];
+    const februaryArrear = februarySalary?.arrear;
+    const februaryBasic = februarySalary?.basic;
+    const februaryAddl = februarySalary?.addl;
+    const februaryDA = Math.round(
+      februarySalary?.basic * februarySalary?.daPercent,
+    );
+    const februaryHRA =
+      februarySalary?.hraPercent > 10
+        ? februarySalary?.hraPercent
+        : Math.round(februarySalary?.basic * februarySalary?.hraPercent);
+    const februaryMA = februarySalary?.ma;
+    const februaryGross =
+      februaryBasic + februaryDA + februaryHRA + februaryAddl + februaryMA;
+    const februaryGPF = februarySalary?.gpf;
+    const februaryGSLI = februarySalary?.gsli;
+    const februaryPTax = disability == "YES" ? 0 : ptaxCalc(februaryGross);
+    const februaryNetpay =
+      februaryGross - februaryGPF - februaryGSLI - februaryPTax;
+    const grossBasic =
+      marchBasic +
+      aprilBasic +
+      mayBasic +
+      juneBasic +
+      julyBasic +
+      augustBasic +
+      septemberBasic +
+      octoberBasic +
+      novemberBasic +
+      decemberBasic +
+      januaryBasic +
+      februaryBasic;
+    const grossAddl =
+      marchAddl +
+      aprilAddl +
+      mayAddl +
+      juneAddl +
+      julyAddl +
+      augustAddl +
+      septemberAddl +
+      octoberAddl +
+      novemberAddl +
+      decemberAddl +
+      januaryAddl +
+      februaryAddl;
+    const grossDA =
+      marchDA +
+      aprilDA +
+      mayDA +
+      juneDA +
+      julyDA +
+      augustDA +
+      septemberDA +
+      octoberDA +
+      novemberDA +
+      decemberDA +
+      januaryDA +
+      februaryDA;
+    const grossHRA =
+      marchHRA +
+      aprilHRA +
+      mayHRA +
+      juneHRA +
+      julyHRA +
+      augustHRA +
+      septemberHRA +
+      octoberHRA +
+      novemberHRA +
+      decemberHRA +
+      januaryHRA +
+      februaryHRA;
+    const grossMA =
+      marchMA +
+      aprilMA +
+      mayMA +
+      juneMA +
+      julyMA +
+      augustMA +
+      septemberMA +
+      octoberMA +
+      novemberMA +
+      decemberMA +
+      januaryMA +
+      februaryMA;
+    const TotalGross =
+      marchGross +
+      aprilGross +
+      mayGross +
+      juneGross +
+      julyGross +
+      augustGross +
+      septemberGross +
+      octoberGross +
+      novemberGross +
+      decemberGross +
+      januaryGross +
+      februaryGross;
+    const GrossArrear =
+      marchArrear +
+      aprilArrear +
+      mayArrear +
+      juneArrear +
+      julyArrear +
+      augustArrear +
+      septemberArrear +
+      octoberArrear +
+      novemberArrear +
+      decemberArrear +
+      januaryArrear +
+      februaryArrear;
+    const GrossPAY =
+      marchGross +
+      aprilGross +
+      mayGross +
+      juneGross +
+      julyGross +
+      augustGross +
+      septemberGross +
+      octoberGross +
+      novemberGross +
+      decemberGross +
+      januaryGross +
+      februaryGross +
+      bonus;
+    const grossGPF =
+      marchGPF +
+      aprilGPF +
+      mayGPF +
+      juneGPF +
+      julyGPF +
+      augustGPF +
+      septemberGPF +
+      octoberGPF +
+      novemberGPF +
+      decemberGPF +
+      januaryGPF +
+      februaryGPF;
+    const grossGSLI =
+      marchGSLI +
+      aprilGSLI +
+      mayGSLI +
+      juneGSLI +
+      julyGSLI +
+      augustGSLI +
+      septemberGSLI +
+      octoberGSLI +
+      novemberGSLI +
+      decemberGSLI +
+      januaryGSLI +
+      februaryGSLI;
+    const grossPTax =
+      marchPTax +
+      aprilPTax +
+      mayPTax +
+      junePTax +
+      julyPTax +
+      augustPTax +
+      septemberPTax +
+      octoberPTax +
+      novemberPTax +
+      decemberPTax +
+      januaryPTax +
+      februaryPTax;
+    const grossNetpay =
+      marchNetpay +
+      aprilNetpay +
+      mayNetpay +
+      juneNetpay +
+      julyNetpay +
+      augustNetpay +
+      septemberNetpay +
+      octoberNetpay +
+      novemberNetpay +
+      decemberNetpay +
+      januaryNetpay +
+      februaryNetpay +
+      bonus;
+
+    const teacherDeduction = deductionState?.filter((el) => el.id === id)[0];
+    const hbLoanPrincipal = teacherDeduction?.hbLoanPrincipal;
+    const hbLoanInterest = teacherDeduction?.hbLoanInterest;
+    const lic = teacherDeduction?.lic;
+    const ulip = teacherDeduction?.ulip;
+    const ppf = teacherDeduction?.ppf;
+    const nsc = teacherDeduction?.nsc;
+    const nscInterest = teacherDeduction?.nscInterest;
+    const tutionFee = teacherDeduction?.tutionFee;
+    const sukanya = teacherDeduction?.sukanya;
+    const stampDuty = teacherDeduction?.stampDuty;
+    const mediclaim = teacherDeduction?.mediclaim;
+    const terminalDisease = teacherDeduction?.terminalDisease;
+    const handicapTreatment = teacherDeduction?.handicapTreatment;
+    const educationLoan = teacherDeduction?.educationLoan;
+    const charity = teacherDeduction?.charity;
+    const disabilityDeduction = teacherDeduction?.disability;
+    const rgSaving = teacherDeduction?.rgSaving;
+    const otherIncome = teacherDeduction?.otherIncome;
+    const fd = teacherDeduction?.fd;
+    const tds = teacherDeduction?.tds;
+    const AllGross =
+      GrossPAY +
+      marchArrear +
+      aprilArrear +
+      mayArrear +
+      juneArrear +
+      julyArrear +
+      augustArrear +
+      septemberArrear +
+      octoberArrear +
+      novemberArrear +
+      decemberArrear +
+      januaryArrear +
+      februaryArrear +
+      otherIncome;
+    const thisBankInterest = isBulk ? randBetween(1200, 2000) : BankInterest;
+    const GrossTotalIncome =
+      AllGross -
+      grossPTax -
+      50000 +
+      thisBankInterest +
+      IntFrDeposit -
+      hbLoanInterest;
+    const deductionVIA =
+      grossGPF +
+      sukanya +
+      nsc +
+      ulip +
+      hbLoanPrincipal +
+      nsc +
+      ppf +
+      lic +
+      tutionFee +
+      fd +
+      grossGSLI +
+      nscInterest;
+    const limitVIA = deductionVIA >= 150000 ? 150000 : deductionVIA;
+    const OtherVIA =
+      thisBankInterest +
+      mediclaim +
+      disabilityDeduction +
+      terminalDisease +
+      educationLoan +
+      charity +
+      handicapTreatment;
+    const TotalIncome = GrossTotalIncome - limitVIA - OtherVIA;
+    const TotalRoundOffIncome = roundSo(TotalIncome, 10);
+    const CalculatedIT = CalculateIncomeTax(TotalRoundOffIncome);
+    const isUnderRebate = CalculatedIT >= 12500 ? false : true;
+    const eduCess = CalculatedIT * 0.04;
+    const AddedEduCess = CalculatedIT + CalculatedIT * 0.04;
+    const finalData = {
+      id,
+      tname,
+      fname,
+      school,
+      pan,
+      phone,
+      disability,
+      desig,
+      gender,
+      thisYear,
+      nextYear,
+      prevYear,
+      finYear,
+      BankInterest: thisBankInterest,
+      IntFrDeposit,
+      teacherDeduction,
+      hbLoanPrincipal,
+      hbLoanInterest,
+      lic,
+      ulip,
+      ppf,
+      nsc,
+      nscInterest,
+      tutionFee,
+      sukanya,
+      stampDuty,
+      mediclaim,
+      terminalDisease,
+      handicapTreatment,
+      educationLoan,
+      charity,
+      disabilityDeduction,
+      rgSaving,
+      otherIncome,
+      fd,
+      tds,
+      marchSalary,
+      marchBasic,
+      marchAddl,
+      marchDA,
+      marchHRA,
+      marchMA,
+      marchGross,
+      marchGPF,
+      marchGSLI,
+      bonus,
+      marchPTax,
+      aprilSalary,
+      aprilBasic,
+      aprilAddl,
+      aprilDA,
+      aprilHRA,
+      aprilMA,
+      aprilGross,
+      aprilGPF,
+      aprilGSLI,
+      aprilPTax,
+      maySalary,
+      mayBasic,
+      mayAddl,
+      mayDA,
+      mayHRA,
+      mayMA,
+      mayGross,
+      mayGPF,
+      mayGSLI,
+      mayPTax,
+      juneSalary,
+      juneBasic,
+      juneAddl,
+      juneDA,
+      juneHRA,
+      juneMA,
+      juneGross,
+      juneGPF,
+      juneGSLI,
+      junePTax,
+      julySalary,
+      julyBasic,
+      julyAddl,
+      julyDA,
+      aprilIR,
+      julyHRA,
+      julyMA,
+      julyGross,
+      julyGPF,
+      julyGSLI,
+      julyPTax,
+      augustSalary,
+      augustBasic,
+      augustAddl,
+      augustDA,
+      augustHRA,
+      augustMA,
+      augustGross,
+      augustGPF,
+      augustGSLI,
+      augustPTax,
+      septemberSalary,
+      septemberBasic,
+      septemberAddl,
+      septemberDA,
+      septemberHRA,
+      septemberMA,
+      septemberGross,
+      septemberGPF,
+      septemberGSLI,
+      septemberPTax,
+      octoberSalary,
+      octoberBasic,
+      octoberAddl,
+      octoberDA,
+      octoberHRA,
+      octoberMA,
+      octoberGross,
+      octoberGPF,
+      octoberGSLI,
+      octoberPTax,
+      novemberSalary,
+      novemberBasic,
+      novemberAddl,
+      novemberDA,
+      novemberHRA,
+      novemberMA,
+      novemberGross,
+      novemberGPF,
+      novemberGSLI,
+      novemberPTax,
+      decemberSalary,
+      decemberBasic,
+      decemberAddl,
+      decemberDA,
+      decemberHRA,
+      decemberMA,
+      decemberGross,
+      decemberGPF,
+      decemberGSLI,
+      decemberPTax,
+      januarySalary,
+      januaryBasic,
+      januaryAddl,
+      januaryDA,
+      januaryHRA,
+      januaryMA,
+      januaryGross,
+      januaryGPF,
+      januaryGSLI,
+      januaryPTax,
+      februarySalary,
+      februaryBasic,
+      februaryAddl,
+      februaryDA,
+      februaryHRA,
+      februaryMA,
+      februaryGross,
+      februaryGPF,
+      februaryGSLI,
+      februaryPTax,
+      grossBasic,
+      grossAddl,
+      grossDA,
+      grossHRA,
+      grossMA,
+      GrossPAY,
+      grossGPF,
+      grossGSLI,
+      grossPTax,
+      AllGross,
+      GrossTotalIncome,
+      deductionVIA,
+      limitVIA,
+      OtherVIA,
+      TotalIncome,
+      TotalRoundOffIncome,
+      CalculatedIT,
+      isUnderRebate,
+      eduCess,
+      AddedEduCess,
+      TotalGross,
+      GrossArrear,
+      marchNetpay,
+      aprilNetpay,
+      mayNetpay,
+      juneNetpay,
+      julyNetpay,
+      augustNetpay,
+      septemberNetpay,
+      octoberNetpay,
+      novemberNetpay,
+      decemberNetpay,
+      januaryNetpay,
+      februaryNetpay,
+      grossNetpay,
+    };
+    if (isBulk) return finalData;
+    setOldITData(finalData);
+  };
+  const calCulateNewIT = async (data, year, isBulk = false) => {
+    const { id, tname, school, pan, disability, desig, gender, fname } = data;
+    const marchSalary = march.filter((el) => el.id == id)[0];
+    const marchArrear = marchSalary?.arrear;
+    const marchBasic = marchSalary?.basic;
+    const marchAddl = marchSalary?.addl;
+    const marchDA = Math.round(marchSalary?.basic * marchSalary?.daPercent);
+    const marchHRA =
+      marchSalary?.hraPercent > 10
+        ? marchSalary?.hraPercent
+        : Math.round(marchSalary?.basic * marchSalary?.hraPercent);
+    const marchMA = marchSalary?.ma;
+    const marchGross = marchBasic + marchDA + marchHRA + marchAddl + marchMA;
+    const marchGPF = marchSalary?.gpf;
+    const marchGSLI = marchSalary?.gsli;
+    const bonus = marchSalary?.bonus;
+    const marchPTax = disability == "YES" ? 0 : ptaxCalc(marchGross);
+    const marchNetpay = marchGross - marchGPF - marchGSLI - marchPTax;
+    const aprilSalary = april.filter((el) => el.id == id)[0];
+    const aprilArrear = aprilSalary?.arrear;
+    const aprilBasic = aprilSalary?.basic;
+    const aprilAddl = aprilSalary?.addl;
+    const aprilDA = Math.round(aprilSalary?.basic * aprilSalary?.daPercent);
+    const aprilHRA =
+      aprilSalary?.hraPercent > 10
+        ? aprilSalary?.hraPercent
+        : Math.round(aprilSalary?.basic * aprilSalary?.hraPercent);
+    const aprilMA = aprilSalary?.ma;
+    const aprilGross = aprilBasic + aprilDA + aprilHRA + aprilAddl + aprilMA;
+    const aprilGPF = aprilSalary?.gpf;
+    const aprilGSLI = aprilSalary?.gsli;
+    const aprilPTax = disability == "YES" ? 0 : ptaxCalc(aprilGross);
+    const aprilNetpay = aprilGross - aprilGPF - aprilGSLI - aprilPTax;
+    const maySalary = may.filter((el) => el.id == id)[0];
+    const mayArrear = maySalary?.arrear;
+    const mayBasic = maySalary?.basic;
+    const mayAddl = maySalary?.addl;
+    const mayDA = Math.round(maySalary?.basic * maySalary?.daPercent);
+    const mayHRA =
+      maySalary?.hraPercent > 10
+        ? maySalary?.hraPercent
+        : Math.round(maySalary?.basic * maySalary?.hraPercent);
+    const mayMA = maySalary?.ma;
+    const mayGross = mayBasic + mayDA + mayHRA + mayAddl + mayMA;
+    const mayGPF = maySalary?.gpf;
+    const mayGSLI = maySalary?.gsli;
+    const mayPTax = disability == "YES" ? 0 : ptaxCalc(mayGross);
+    const mayNetpay = mayGross - mayGPF - mayGSLI - mayPTax;
+    const juneSalary = june.filter((el) => el.id == id)[0];
+    const juneArrear = juneSalary?.arrear;
+    const juneBasic = juneSalary?.basic;
+    const juneAddl = juneSalary?.addl;
+    const juneDA = Math.round(juneSalary?.basic * juneSalary?.daPercent);
+    const juneHRA =
+      juneSalary?.hraPercent > 10
+        ? juneSalary?.hraPercent
+        : Math.round(juneSalary?.basic * juneSalary?.hraPercent);
+    const juneMA = juneSalary?.ma;
+    const juneGross = juneBasic + juneDA + juneHRA + juneAddl + juneMA;
+    const juneGPF = juneSalary?.gpf;
+    const juneGSLI = juneSalary?.gsli;
+    const junePTax = disability == "YES" ? 0 : ptaxCalc(juneGross);
+    const juneNetpay = juneGross - juneGPF - juneGSLI - junePTax;
+    const julySalary = july.filter((el) => el.id == id)[0];
+    const julyArrear = julySalary?.arrear;
+    const julyBasic = julySalary?.basic;
+    const julyAddl = julySalary?.addl;
+    const julyDA = Math.round(julySalary?.basic * julySalary?.daPercent);
+    const aprilIR =
+      thisYear == 2024 ? Math.round(aprilSalary?.basic * 0.04) : 0;
+    const julyHRA =
+      julySalary?.hraPercent > 10
+        ? julySalary?.hraPercent
+        : Math.round(julySalary?.basic * julySalary?.hraPercent);
+    const julyMA = julySalary?.ma;
+    const julyGross =
+      julyBasic + julyDA + julyHRA + julyAddl + julyMA + aprilIR;
+    const julyGPF = julySalary?.gpf;
+    const julyGSLI = julySalary?.gsli;
+    const julyPTax = disability == "YES" ? 0 : ptaxCalc(julyGross);
+    const julyNetpay = julyGross - julyGPF - julyGSLI - julyPTax;
+    const augustSalary = august.filter((el) => el.id == id)[0];
+    const augustArrear = augustSalary?.arrear;
+    const augustBasic = augustSalary?.basic;
+    const augustAddl = augustSalary?.addl;
+    const augustDA = Math.round(augustSalary?.basic * augustSalary?.daPercent);
+    const augustHRA =
+      augustSalary?.hraPercent > 10
+        ? augustSalary?.hraPercent
+        : Math.round(augustSalary?.basic * augustSalary?.hraPercent);
+    const augustMA = augustSalary?.ma;
+    const augustGross =
+      augustBasic + augustDA + augustHRA + augustAddl + augustMA;
+    const augustGPF = augustSalary?.gpf;
+    const augustGSLI = augustSalary?.gsli;
+    const augustPTax = disability == "YES" ? 0 : ptaxCalc(augustGross);
+    const augustNetpay = augustGross - augustGPF - augustGSLI - augustPTax;
+    const septemberSalary = september.filter((el) => el.id == id)[0];
+    const septemberArrear = septemberSalary?.arrear;
+    const septemberBasic = septemberSalary?.basic;
+    const septemberAddl = septemberSalary?.addl;
+    const septemberDA = Math.round(
+      septemberSalary?.basic * septemberSalary?.daPercent,
+    );
+    const septemberHRA =
+      septemberSalary?.hraPercent > 10
+        ? septemberSalary?.hraPercent
+        : Math.round(septemberSalary?.basic * septemberSalary?.hraPercent);
+    const septemberMA = septemberSalary?.ma;
+    const septemberGross =
+      septemberBasic + septemberDA + septemberHRA + septemberAddl + septemberMA;
+    const septemberGPF = septemberSalary?.gpf;
+    const septemberGSLI = septemberSalary?.gsli;
+    const septemberPTax = disability == "YES" ? 0 : ptaxCalc(septemberGross);
+    const septemberNetpay =
+      septemberGross - septemberGPF - septemberGSLI - septemberPTax;
+    const octoberSalary = october.filter((el) => el.id == id)[0];
+    const octoberArrear = octoberSalary?.arrear;
+    const octoberBasic = octoberSalary?.basic;
+    const octoberAddl = octoberSalary?.addl;
+    const octoberDA = Math.round(
+      octoberSalary?.basic * octoberSalary?.daPercent,
+    );
+    const octoberHRA =
+      octoberSalary?.hraPercent > 10
+        ? octoberSalary?.hraPercent
+        : Math.round(octoberSalary?.basic * octoberSalary?.hraPercent);
+    const octoberMA = octoberSalary?.ma;
+    const octoberGross =
+      octoberBasic + octoberDA + octoberHRA + octoberAddl + octoberMA;
+    const octoberGPF = octoberSalary?.gpf;
+    const octoberGSLI = octoberSalary?.gsli;
+    const octoberPTax = disability == "YES" ? 0 : ptaxCalc(octoberGross);
+    const octoberNetpay = octoberGross - octoberGPF - octoberGSLI - octoberPTax;
+    const novemberSalary = november.filter((el) => el.id == id)[0];
+    const novemberArrear = novemberSalary?.arrear;
+    const novemberBasic = novemberSalary?.basic;
+    const novemberAddl = novemberSalary?.addl;
+    const novemberDA = Math.round(
+      novemberSalary?.basic * novemberSalary?.daPercent,
+    );
+    const novemberHRA =
+      novemberSalary?.hraPercent > 10
+        ? novemberSalary?.hraPercent
+        : Math.round(novemberSalary?.basic * novemberSalary?.hraPercent);
+    const novemberMA = novemberSalary?.ma;
+    const novemberGross =
+      novemberBasic + novemberDA + novemberHRA + novemberAddl + novemberMA;
+    const novemberGPF = novemberSalary?.gpf;
+    const novemberGSLI = novemberSalary?.gsli;
+    const novemberPTax = disability == "YES" ? 0 : ptaxCalc(novemberGross);
+    const novemberNetpay =
+      novemberGross - novemberGPF - novemberGSLI - novemberPTax;
+    const decemberSalary = december.filter((el) => el.id == id)[0];
+    const decemberArrear = decemberSalary?.arrear;
+    const decemberBasic = decemberSalary?.basic;
+    const decemberAddl = decemberSalary?.addl;
+    const decemberDA = Math.round(
+      decemberSalary?.basic * decemberSalary?.daPercent,
+    );
+    const decemberHRA =
+      decemberSalary?.hraPercent > 10
+        ? decemberSalary?.hraPercent
+        : Math.round(decemberSalary?.basic * decemberSalary?.hraPercent);
+    const decemberMA = decemberSalary?.ma;
+    const decemberGross =
+      decemberBasic + decemberDA + decemberHRA + decemberAddl + decemberMA;
+    const decemberGPF = decemberSalary?.gpf;
+    const decemberGSLI = decemberSalary?.gsli;
+    const decemberPTax = disability == "YES" ? 0 : ptaxCalc(decemberGross);
+    const decemberNetpay =
+      decemberGross - decemberGPF - decemberGSLI - decemberPTax;
+    const januarySalary = january.filter((el) => el.id == id)[0];
+    const januaryArrear = januarySalary?.arrear;
+    const januaryBasic = januarySalary?.basic;
+    const januaryAddl = januarySalary?.addl;
+    const januaryDA = Math.round(
+      januarySalary?.basic * januarySalary?.daPercent,
+    );
+    const januaryHRA =
+      januarySalary?.hraPercent > 10
+        ? januarySalary?.hraPercent
+        : Math.round(januarySalary?.basic * januarySalary?.hraPercent);
+    const januaryMA = januarySalary?.ma;
+    const januaryGross =
+      januaryBasic + januaryDA + januaryHRA + januaryAddl + januaryMA;
+    const januaryGPF = januarySalary?.gpf;
+    const januaryGSLI = januarySalary?.gsli;
+    const januaryPTax = disability == "YES" ? 0 : ptaxCalc(januaryGross);
+    const januaryNetpay = januaryGross - januaryGPF - januaryGSLI - januaryPTax;
+    const februarySalary = february.filter((el) => el.id == id)[0];
+    const februaryArrear = februarySalary?.arrear;
+    const februaryBasic = februarySalary?.basic;
+    const februaryAddl = februarySalary?.addl;
+    const februaryDA = Math.round(
+      februarySalary?.basic * februarySalary?.daPercent,
+    );
+    const februaryHRA =
+      februarySalary?.hraPercent > 10
+        ? februarySalary?.hraPercent
+        : Math.round(februarySalary?.basic * februarySalary?.hraPercent);
+    const februaryMA = februarySalary?.ma;
+    const februaryGross =
+      februaryBasic + februaryDA + februaryHRA + februaryAddl + februaryMA;
+    const februaryGPF = februarySalary?.gpf;
+    const februaryGSLI = februarySalary?.gsli;
+    const februaryPTax = disability == "YES" ? 0 : ptaxCalc(februaryGross);
+    const februaryNetpay =
+      februaryGross - februaryGPF - februaryGSLI - februaryPTax;
+    const grossBasic =
+      marchBasic +
+      aprilBasic +
+      mayBasic +
+      juneBasic +
+      julyBasic +
+      augustBasic +
+      septemberBasic +
+      octoberBasic +
+      novemberBasic +
+      decemberBasic +
+      januaryBasic +
+      februaryBasic;
+    const grossAddl =
+      marchAddl +
+      aprilAddl +
+      mayAddl +
+      juneAddl +
+      julyAddl +
+      augustAddl +
+      septemberAddl +
+      octoberAddl +
+      novemberAddl +
+      decemberAddl +
+      januaryAddl +
+      februaryAddl;
+    const grossDA =
+      marchDA +
+      aprilDA +
+      mayDA +
+      juneDA +
+      julyDA +
+      augustDA +
+      septemberDA +
+      octoberDA +
+      novemberDA +
+      decemberDA +
+      januaryDA +
+      februaryDA;
+    const grossHRA =
+      marchHRA +
+      aprilHRA +
+      mayHRA +
+      juneHRA +
+      julyHRA +
+      augustHRA +
+      septemberHRA +
+      octoberHRA +
+      novemberHRA +
+      decemberHRA +
+      januaryHRA +
+      februaryHRA;
+    const grossMA =
+      marchMA +
+      aprilMA +
+      mayMA +
+      juneMA +
+      julyMA +
+      augustMA +
+      septemberMA +
+      octoberMA +
+      novemberMA +
+      decemberMA +
+      januaryMA +
+      februaryMA;
+    const TotalGross =
+      marchGross +
+      aprilGross +
+      mayGross +
+      juneGross +
+      julyGross +
+      augustGross +
+      septemberGross +
+      octoberGross +
+      novemberGross +
+      decemberGross +
+      januaryGross +
+      februaryGross;
+    const GrossArrear =
+      marchArrear +
+      aprilArrear +
+      mayArrear +
+      juneArrear +
+      julyArrear +
+      augustArrear +
+      septemberArrear +
+      octoberArrear +
+      novemberArrear +
+      decemberArrear +
+      januaryArrear +
+      februaryArrear;
+    const GrossPAY =
+      marchGross +
+      aprilGross +
+      mayGross +
+      juneGross +
+      julyGross +
+      augustGross +
+      septemberGross +
+      octoberGross +
+      novemberGross +
+      decemberGross +
+      januaryGross +
+      februaryGross +
+      bonus;
+    const grossGPF =
+      marchGPF +
+      aprilGPF +
+      mayGPF +
+      juneGPF +
+      julyGPF +
+      augustGPF +
+      septemberGPF +
+      octoberGPF +
+      novemberGPF +
+      decemberGPF +
+      januaryGPF +
+      februaryGPF;
+    const grossGSLI =
+      marchGSLI +
+      aprilGSLI +
+      mayGSLI +
+      juneGSLI +
+      julyGSLI +
+      augustGSLI +
+      septemberGSLI +
+      octoberGSLI +
+      novemberGSLI +
+      decemberGSLI +
+      januaryGSLI +
+      februaryGSLI;
+    const grossPTax =
+      marchPTax +
+      aprilPTax +
+      mayPTax +
+      junePTax +
+      julyPTax +
+      augustPTax +
+      septemberPTax +
+      octoberPTax +
+      novemberPTax +
+      decemberPTax +
+      januaryPTax +
+      februaryPTax;
+    const grossNetpay =
+      marchNetpay +
+      aprilNetpay +
+      mayNetpay +
+      juneNetpay +
+      julyNetpay +
+      augustNetpay +
+      septemberNetpay +
+      octoberNetpay +
+      novemberNetpay +
+      decemberNetpay +
+      januaryNetpay +
+      februaryNetpay +
+      bonus;
+
+    const AllGross =
+      GrossPAY +
+      marchArrear +
+      aprilArrear +
+      mayArrear +
+      juneArrear +
+      julyArrear +
+      augustArrear +
+      septemberArrear +
+      octoberArrear +
+      novemberArrear +
+      decemberArrear +
+      januaryArrear +
+      februaryArrear;
+    const thisBankInterest = isBulk ? randBetween(1200, 2000) : BankInterest;
+    const GrossTotalIncome = AllGross - 75000 + thisBankInterest + IntFrDeposit; //H36
+    const TotalRoundOffIncome = roundSo(GrossTotalIncome, 10);
+    let ThirtyIT = 0;
+    let ThirtyITTax = 0;
+    let TwentyIT = 0;
+    let TwentyITTax = 0;
+    let FifteenIT = 0;
+    let FifteenITTax = 0;
+    let TenIT = 0;
+    let TenITTax = 0;
+    let FiveIT = 0;
+    let FiveITTax = 0;
+    let CalculatedIT = 0;
+    let GrossRelief = 0;
+    let IncomeTaxAfterRelief = 0;
+    let eduCess = 0;
+    let AddedEduCess = 0;
+    let TwentyFiveIT = 0;
+    let TwentyFiveITTax = 0;
+    if (thisYear == 2024) {
+      ThirtyIT = GrossTotalIncome > 1500000 ? GrossTotalIncome - 1500000 : 0;
+      ThirtyITTax = ThirtyIT * 0.3;
+      TwentyIT =
+        GrossTotalIncome > 1200000 ? GrossTotalIncome - 1200000 - ThirtyIT : 0;
+      TwentyITTax = TwentyIT * 0.2;
+      FifteenIT =
+        GrossTotalIncome > 1000000
+          ? GrossTotalIncome - 1000000 - ThirtyIT - TwentyIT
+          : 0;
+      FifteenITTax = FifteenIT * 0.15;
+      TenIT =
+        GrossTotalIncome > 700000
+          ? GrossTotalIncome - 700000 - ThirtyIT - TwentyIT - FifteenIT
+          : 0;
+      TenITTax = TenIT * 0.1;
+      FiveIT =
+        GrossTotalIncome > 300000
+          ? GrossTotalIncome - 300000 - ThirtyIT - TwentyIT - FifteenIT - TenIT
+          : 0;
+      FiveITTax = FiveIT * 0.05;
+      CalculatedIT = Math.floor(
+        ThirtyITTax + TwentyITTax + FifteenITTax + TenITTax + FiveITTax,
+      ); //H46
+      const cal1 = GrossTotalIncome > 700000 ? GrossTotalIncome : 0; //G67
+      const cal2 = GrossTotalIncome > 700000 ? cal1 - 700000 : 0; //G68
+      const cal3 =
+        GrossTotalIncome < 700001 ? Math.min(CalculatedIT, 25000) : 0; //G66
+      const cal4 = GrossTotalIncome > 700000 ? CalculatedIT - cal2 : 0; //H67
+      const cal5 = cal4 > 0 ? true : false; //H68
+      const cal6 = cal5 ? cal4 : 0; //H66
+      GrossRelief = cal3 + cal6; //J66
+      IncomeTaxAfterRelief = Math.floor(CalculatedIT - GrossRelief);
+      eduCess = Math.floor(IncomeTaxAfterRelief * 0.04);
+      AddedEduCess = IncomeTaxAfterRelief + eduCess;
+    } else if (thisYear == 2025) {
+      ThirtyIT = GrossTotalIncome > 2400000 ? GrossTotalIncome - 2400000 : 0;
+      ThirtyITTax = ThirtyIT * 0.3;
+      TwentyFiveIT =
+        GrossTotalIncome > 2000000 ? GrossTotalIncome - 2000000 : 0;
+      TwentyFiveITTax = TwentyFiveIT * 0.25;
+      TwentyIT =
+        GrossTotalIncome > 1600000
+          ? GrossTotalIncome - 1600000 - ThirtyIT - TwentyFiveIT
+          : 0;
+      TwentyITTax = TwentyIT * 0.2;
+      FifteenIT =
+        GrossTotalIncome > 1200000
+          ? GrossTotalIncome - 1200000 - ThirtyIT - TwentyFiveIT - TwentyIT
+          : 0;
+      FifteenITTax = FifteenIT * 0.15;
+      TenIT =
+        GrossTotalIncome > 800000
+          ? GrossTotalIncome -
+            800000 -
+            ThirtyIT -
+            TwentyFiveIT -
+            TwentyIT -
+            FifteenIT
+          : 0;
+      TenITTax = TenIT * 0.1;
+      FiveIT =
+        GrossTotalIncome > 400000
+          ? GrossTotalIncome -
+            400000 -
+            ThirtyIT -
+            TwentyFiveIT -
+            TwentyIT -
+            FifteenIT -
+            TenIT
+          : 0;
+      FiveITTax = FiveIT * 0.05;
+      CalculatedIT = Math.floor(
+        ThirtyITTax +
+          TwentyFiveITTax +
+          TwentyITTax +
+          FifteenITTax +
+          TenITTax +
+          FiveITTax,
+      ); //H46
+      const cal1 = GrossTotalIncome > 1200000 ? GrossTotalIncome : 0; //G67
+      const cal2 = GrossTotalIncome > 1200000 ? cal1 - 700000 : 0; //G68
+      const cal3 =
+        GrossTotalIncome < 1200001 ? Math.min(CalculatedIT, 60000) : 0; //G66
+      const cal4 = GrossTotalIncome > 1200000 ? CalculatedIT - cal2 : 0; //H67
+      const cal5 = cal4 > 0 ? true : false; //H68
+      const cal6 = cal5 ? cal4 : 0; //H66
+      GrossRelief = cal3 + cal6; //J66
+      IncomeTaxAfterRelief = Math.floor(CalculatedIT - GrossRelief);
+      eduCess = Math.floor(IncomeTaxAfterRelief * 0.04);
+      AddedEduCess = IncomeTaxAfterRelief + eduCess;
+    }
+    const finalData = {
+      tname,
+      fname,
+      school,
+      pan,
+      desig,
+      gender,
+      thisYear,
+      nextYear,
+      finYear,
+      marchSalary,
+      marchBasic,
+      marchAddl,
+      marchDA,
+      marchHRA,
+      marchMA,
+      marchGross,
+      marchGPF,
+      marchGSLI,
+      bonus,
+      marchPTax,
+      aprilSalary,
+      aprilBasic,
+      aprilAddl,
+      aprilDA,
+      aprilHRA,
+      aprilMA,
+      aprilGross,
+      aprilGPF,
+      aprilGSLI,
+      aprilPTax,
+      maySalary,
+      mayBasic,
+      mayAddl,
+      mayDA,
+      mayHRA,
+      mayMA,
+      mayGross,
+      mayGPF,
+      mayGSLI,
+      mayPTax,
+      juneSalary,
+      juneBasic,
+      juneAddl,
+      juneDA,
+      juneHRA,
+      juneMA,
+      juneGross,
+      juneGPF,
+      juneGSLI,
+      junePTax,
+      julySalary,
+      julyBasic,
+      julyAddl,
+      julyDA,
+      aprilIR,
+      julyHRA,
+      julyMA,
+      julyGross,
+      julyGPF,
+      julyGSLI,
+      julyPTax,
+      augustSalary,
+      augustBasic,
+      augustAddl,
+      augustDA,
+      augustHRA,
+      augustMA,
+      augustGross,
+      augustGPF,
+      augustGSLI,
+      augustPTax,
+      septemberSalary,
+      septemberBasic,
+      septemberAddl,
+      septemberDA,
+      septemberHRA,
+      septemberMA,
+      septemberGross,
+      septemberGPF,
+      septemberGSLI,
+      septemberPTax,
+      octoberSalary,
+      octoberBasic,
+      octoberAddl,
+      octoberDA,
+      octoberHRA,
+      octoberMA,
+      octoberGross,
+      octoberGPF,
+      octoberGSLI,
+      octoberPTax,
+      novemberSalary,
+      novemberBasic,
+      novemberAddl,
+      novemberDA,
+      novemberHRA,
+      novemberMA,
+      novemberGross,
+      novemberGPF,
+      novemberGSLI,
+      novemberPTax,
+      decemberSalary,
+      decemberBasic,
+      decemberAddl,
+      decemberDA,
+      decemberHRA,
+      decemberMA,
+      decemberGross,
+      decemberGPF,
+      decemberGSLI,
+      decemberPTax,
+      januarySalary,
+      januaryBasic,
+      januaryAddl,
+      januaryDA,
+      januaryHRA,
+      januaryMA,
+      januaryGross,
+      januaryGPF,
+      januaryGSLI,
+      januaryPTax,
+      februarySalary,
+      februaryBasic,
+      februaryAddl,
+      februaryDA,
+      februaryHRA,
+      februaryMA,
+      februaryGross,
+      februaryGPF,
+      februaryGSLI,
+      februaryPTax,
+      grossBasic,
+      grossAddl,
+      grossDA,
+      grossHRA,
+      grossMA,
+      GrossPAY,
+      grossGPF,
+      grossGSLI,
+      grossPTax,
+      AllGross,
+      GrossTotalIncome,
+      TotalRoundOffIncome,
+      CalculatedIT,
+      eduCess,
+      AddedEduCess,
+      BankInterest: thisBankInterest,
+      IntFrDeposit,
+
+      GrossRelief,
+      IncomeTaxAfterRelief,
+      ThirtyIT,
+      ThirtyITTax,
+      TwentyFiveIT,
+      TwentyFiveITTax,
+      TwentyIT,
+      TwentyITTax,
+      FifteenIT,
+      FifteenITTax,
+      TenIT,
+      TenITTax,
+      FiveIT,
+      FiveITTax,
+      marchNetpay,
+      aprilNetpay,
+      mayNetpay,
+      juneNetpay,
+      julyNetpay,
+      augustNetpay,
+      septemberNetpay,
+      octoberNetpay,
+      novemberNetpay,
+      decemberNetpay,
+      januaryNetpay,
+      februaryNetpay,
+      grossNetpay,
+      TotalGross,
+      GrossArrear,
+    };
+    if (isBulk) return finalData;
+    setNewITDa(finalData);
+  };
+
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+  const cancelBulkRef = React.useRef(false);
+  const stopBulkDownload = () => {
+    cancelBulkRef.current = true;
+    setLoader(false);
+    setIsPdfDownloading(false);
+    toast.info("Bulk download stopped.");
+  };
+
+  const handleBulkDownload = async (docType) => {
+    if (filteredData.length === 0) {
+      toast.error("No teachers to download!");
+      return;
+    }
+    const confirm = window.confirm(
+      `Are you sure you want to download ${docType} for ${filteredData.length} teachers? This might take a while.`,
+    );
+    if (!confirm) return;
+
+    // reset cancel flag and show loader
+    cancelBulkRef.current = false;
+    setIsPdfDownloading(true);
+    try {
+      const { pdf } = await import("@react-pdf/renderer");
+      for (let i = 0; i < filteredData.length; i++) {
+        if (cancelBulkRef.current) {
+          // user cancelled
+          toast.info("Bulk download cancelled by user.");
+          break;
+        }
+        const teacher = filteredData[i];
+        const fData = teachersState.filter((t) => t.id === teacher.id)[0];
+
+        if (!fData || teacher.AllGross === 0) continue;
+
+        let data;
+        let DocumentComponent;
+        let fileName;
+
+        if (docType === "ITOld") {
+          data = await calCulateOldIT(fData, true);
+          DocumentComponent = IncomeTaxOld2025;
+          fileName = `${fData.tname}_IT_Statement_OLD_2025.pdf`;
+        } else if (docType === "ITNew") {
+          data = await calCulateNewIT(fData, prevYear, true);
+          DocumentComponent = IncomeTaxNew2025;
+          fileName = `${fData.tname}_IT_Statement_NEW_2025.pdf`;
+        } else if (docType === "Form16Old") {
+          data = await calCulateOldIT(fData, true);
+          DocumentComponent = Form16New;
+          fileName = `${fData.tname}_Form16_OLD.pdf`;
+        } else if (docType === "Form16New") {
+          data = await calCulateNewIT(fData, prevYear, true);
+          DocumentComponent = Form16NewRegime;
+          fileName = `${fData.tname}_Form16_NEW.pdf`;
+        }
+
+        if (data && DocumentComponent) {
+          const toBlobPromise = pdf(<DocumentComponent data={data} />).toBlob();
+
+          const cancelPromise = new Promise((resolve) => {
+            const check = () => {
+              if (cancelBulkRef.current) resolve("cancel");
+              else setTimeout(check, 100);
+            };
+            check();
+          });
+
+          const result = await Promise.race([toBlobPromise, cancelPromise]);
+
+          if (result === "cancel") {
+            toast.info("Bulk download cancelled by user.");
+            break;
+          }
+
+          const blob = result;
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+      }
+      if (!cancelBulkRef.current) {
+        toast.success("All files downloaded successfully!");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred during bulk download.");
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  };
+
+  const getDeduction = async () => {
+    if (deductionState.length === 0) {
+      setLoader(true);
+      const q = query(collection(firestore, "deduction"));
+      const querySnapshot = await getDocs(q);
+      const data = querySnapshot.docs.map((doc) => ({
+        // doc.data() is never undefined for query doc snapshots
+        ...doc.data(),
+        id: doc.id,
+      }));
+      setDeductionState(data);
+      setLoader(false);
+    }
+  };
+  const updateTeacherDeduction = async () => {
+    const docRef = doc(firestore, "deduction", teacherDeduction.id);
+    setLoader(true);
+    await updateDoc(docRef, teacherDeduction)
+      .then(() => {
+        setLoader(false);
+        const newData = deductionState.map((item) =>
+          item.id === teacherDeduction.id ? teacherDeduction : item,
+        );
+        setDeductionState(newData);
+        toast.success("Deduction Updated Successfully!");
+        setShowDeductionForm(false);
+        setLoader(false);
+      })
+      .catch((e) => {
+        setLoader(false);
+        toast.error("Error Updating Deduction!");
+        console.log(e);
+      });
+  };
+
+  const getSalary = async (year) => {
+    setLoader(true);
+    const respronse = await axios.get(
+      `https://raw.githubusercontent.com/amtawestwbtpta/salaryRemodified/main/${year}/Salary-${year}.json`,
+    );
+    const data = respronse.data;
+    const thisTeacher = data?.filter((teacher) => teacher?.id === USER.id);
+    setSalary(state === "admin" ? data : thisTeacher);
+    setFilteredData(state === "admin" ? data : thisTeacher);
+    setSalaryState(data);
+    setLoader(false);
+  };
+  const getMonthlySalary = async (thisYear, prevYear) => {
+    setLoader(false);
+    const q1 = await readCSVFileV2(`january-${thisYear}`, thisYear);
+    const q2 = await readCSVFileV2(`february-${thisYear}`, thisYear);
+    const q3 = await readCSVFileV2(`march-${prevYear}`, prevYear);
+    const q4 = await readCSVFileV2(`april-${prevYear}`, prevYear);
+    const q5 = await readCSVFileV2(`may-${prevYear}`, prevYear);
+    const q6 = await readCSVFileV2(`june-${prevYear}`, prevYear);
+    const q7 = await readCSVFileV2(`july-${prevYear}`, prevYear);
+    const q8 = await readCSVFileV2(`august-${prevYear}`, prevYear);
+    const q9 = await readCSVFileV2(`september-${prevYear}`, prevYear);
+    const q10 = await readCSVFileV2(`october-${prevYear}`, prevYear);
+    const q11 = await readCSVFileV2(`november-${prevYear}`, prevYear);
+    const q12 = await readCSVFileV2(`december-${prevYear}`, prevYear);
+
+    setJanuary(q1);
+    setFebruary(q2);
+    setMarch(q3);
+    setApril(q4);
+    setMay(q5);
+    setJune(q6);
+    setJuly(q7);
+    setAugust(q8);
+    setSeptember(q9);
+    setOctober(q10);
+    setNovember(q11);
+    setDecember(q12);
+    setLoader(true);
+    setIndSalaryState({
+      march: q1,
+      april: q2,
+      may: q3,
+      june: q4,
+      july: q5,
+      august: q6,
+      september: q7,
+      october: q8,
+      november: q9,
+      december: q10,
+      january: q11,
+      february: q12,
+    });
+    setLoader(false);
+  };
+
+  useEffect(() => {
+    getDeduction();
+
+    // eslint-disable-next-line
+  }, [salary, filteredData]);
+  const removeTeacher = (id) => {
+    const confirmRemove =
+      typeof window !== "undefined"
+        ? window.confirm("Are you sure you want to remove this teacher?")
+        : true;
+    if (!confirmRemove) return;
+    setSalary((prev) => prev.filter((s) => s.id !== id));
+    setFilteredData((prev) => prev.filter((s) => s.id !== id));
+    toast.success("Teacher removed from the list.");
+  };
+  const showAllTeachers = () => {
+    if (salaryState && salaryState.length > 0) {
+      setFilteredData(salaryState);
+    } else {
+      setFilteredData(salary);
+    }
+    setFilterClicked(true);
+    setSearch("");
+    setSchSearch("");
+    toast.info("Showing all teachers.");
+  };
+
+  return (
+    <div className="container-fluid">
+      <ToastContainer
+        position="top-right"
+        autoClose={1500}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover={false}
+        theme="light"
+      />
+      {loader && <Loader />}
+      {isPdfDownloading ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0,0,0,0.45)",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: 24,
+              borderRadius: 8,
+              boxShadow: "0 6px 24px rgba(0,0,0,0.25)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              minWidth: 280,
+            }}
+          >
+            <h4>Downloading PDFs...</h4>
+            <p>Please wait while the documents are being prepared.</p>
+            <div style={{ marginTop: 16 }}>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={stopBulkDownload}
+              >
+                Stop Downloads
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : showYearSelection ? (
+        <div
+          className="modal fade show"
+          tabIndex="-1"
+          role="dialog"
+          style={{ display: "block" }}
+          aria-modal="true"
+        >
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h1 className="modal-title fs-5" id="staticBackdropLabel">
+                  Select Financial Year
+                </h1>
+              </div>
+              <div className="modal-body">
+                <div className="col-md-6 mx-auto noprint my-5">
+                  <select
+                    className="form-select"
+                    aria-label="Default select example"
+                    defaultValue={""}
+                    onChange={(e) => {
+                      const selectedFinYear = e.target.value;
+                      if (selectedFinYear !== "Select Financial Year") {
+                        setFinYear(selectedFinYear);
+                        setShowYearSelection(false);
+                        const yearParts = selectedFinYear.split("-");
+                        const startYear = parseInt(yearParts[0]);
+                        const endYear = parseInt(yearParts[1]);
+                        setThisYear(startYear);
+                        setPrevYear(startYear - 1);
+                        setNextYear(endYear);
+
+                        getMonthlySalary(endYear, startYear);
+                        getSalary(startYear);
+                        // getMonthlySalary(endYear, startYear, selectedFinYear);
+                        // getSalary(startYear, selectedFinYear);
+                      } else {
+                        toast.error("Please select a valid financial year.");
+                      }
+                    }}
+                  >
+                    <option>Select Financial Year</option>
+                    {yearArray
+                      .slice(0, yearArray.length - 1)
+                      .map((year, index) => (
+                        <option
+                          value={`${yearArray[index]}-${yearArray[index + 1]}`}
+                          key={index}
+                        >
+                          {yearArray[index]}-{yearArray[index + 1]}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer"></div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="my-3">
+            {state === "admin" && (
+              <div className="noprint">
+                <div className="buttons">
+                  <button
+                    type="button"
+                    className="btn m-2 btn-warning"
+                    onClick={() => {
+                      createDownloadLink(deductionState, "deduction");
+                    }}
+                  >
+                    Download Deduction Data
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary m-2"
+                    onClick={() => {
+                      const fData = filteredData.filter(
+                        (salary) => salary?.AllGross >= 500000,
+                      );
+                      if (fData.length !== 0) {
+                        setFilteredData(fData);
+                      } else {
+                        setFilteredData(
+                          salary.filter((salary) => salary?.AllGross >= 500000),
+                        );
+                      }
+                      setFilterClicked(true);
+                    }}
+                  >
+                    Above Five Lakh
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-success m-2"
+                    onClick={() => {
+                      const fData = filteredData.filter(
+                        (salary) => salary?.AllGross <= 500000,
+                      );
+                      if (fData.length !== 0) {
+                        setFilteredData(fData);
+                      } else {
+                        setFilteredData(
+                          salary.filter((salary) => salary?.AllGross <= 500000),
+                        );
+                      }
+                      setFilterClicked(true);
+                    }}
+                  >
+                    Below Five Lakh
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-info m-2"
+                    onClick={() => {
+                      const fData = filteredData.filter(
+                        (salary) => salary?.NetTax !== 0,
+                      );
+                      if (fData.length !== 0) {
+                        setFilteredData(fData);
+                      } else {
+                        setFilteredData(
+                          salary.filter((salary) => salary?.NetTax <= 0),
+                        );
+                      }
+                      setFilterClicked(true);
+                    }}
+                  >
+                    Taxable Teachers
+                  </button>
+                  {state === "admin" && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-warning m-2"
+                      onClick={() => {
+                        const fData = filteredData.filter(
+                          (salary) => salary?.association === "WBTPTA",
+                        );
+                        if (fData.length !== 0) {
+                          setFilteredData(fData);
+                        } else {
+                          setFilteredData(
+                            salary.filter(
+                              (salary) => salary?.association === "WBTPTA",
+                            ),
+                          );
+                        }
+                        setFilterClicked(true);
+                      }}
+                    >
+                      Only WBTPTA Teachers
+                    </button>
+                  )}
+                  {salaryState.length !== filteredData.length && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger m-2"
+                      onClick={() => showAllTeachers()}
+                    >
+                      All Teachers
+                    </button>
+                  )}
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary text-white font-weight-bold p-2 m-2 noprint rounded"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        window.print();
+                      }
+                    }}
+                  >
+                    Print
+                  </button>
+                </div>
+              </div>
+            )}
+            <div>
+              <button
+                type="button"
+                className="btn btn-sm btn-dark text-white font-weight-bold p-2 m-2 noprint rounded"
+                onClick={() => setShowYearSelection(true)}
+              >
+                Change Financial Year
+              </button>
+            </div>
+            <div className="my-2 noprint d-flex flex-column align-items-center justify-content-center">
+              <h5 className="my-2">Bulk Download</h5>
+              <div className="d-flex flex-wrap">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-success m-1"
+                  onClick={() => handleBulkDownload("ITOld")}
+                >
+                  Download All Old IT
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary m-1"
+                  onClick={() => handleBulkDownload("ITNew")}
+                >
+                  Download All New IT
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-warning m-1"
+                  onClick={() => handleBulkDownload("Form16Old")}
+                >
+                  Download All Form 16 Old
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-info m-1"
+                  onClick={() => handleBulkDownload("Form16New")}
+                >
+                  Download All Form 16 New
+                </button>
+              </div>
+            </div>
+
+            {state === "admin" ? (
+              <h3 className="text-black">All Teacher IT Data</h3>
+            ) : (
+              <h3 className="text-black">{USER.tname}'s IT Data</h3>
+            )}
+            <h3 className="text-success">Financial Year: {finYear}</h3>
+            <div>
+              <div className="mx-auto">
+                {state === "admin" && (
+                  <div className="col-md-6 mx-auto mx-auto noprint">
+                    <div className="mb-2">
+                      <input
+                        type="text"
+                        placeholder="Search by Teacher"
+                        className="form-control"
+                        value={search}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setFilteredData(
+                            salary.filter((el) =>
+                              el.tname
+                                .toLowerCase()
+                                .includes(e.target.value.toLowerCase()),
+                            ),
+                          );
+                        }}
+                      />
+                    </div>
+                    <div className="mb-2">
+                      <input
+                        type="text"
+                        placeholder="Search by School"
+                        className="form-control"
+                        value={schSearch}
+                        onChange={(e) => {
+                          setSchSearch(e.target.value);
+                          setFilteredData(
+                            salary.filter((el) =>
+                              el.school
+                                .toLowerCase()
+                                .includes(e.target.value.toLowerCase()),
+                            ),
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="mx-auto  d-flex flex-row justify-content-evenly flex-wrap">
+                  {filteredData.map((row, index) => {
+                    if (
+                      row?.AllGross !== 0 &&
+                      teachersState.filter((teacher) => teacher.id === row.id)
+                        .length > 0
+                    ) {
+                      return (
+                        <div
+                          className="rounded shadow-sm text-center col-md-2 m-2 p-2 nobreak position-relative"
+                          style={{ backgroundColor: "seashell" }}
+                          key={index}
+                        >
+                          {state === "admin" && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-1 noprint"
+                              aria-label="Remove teacher"
+                              onClick={() => removeTeacher(row.id)}
+                            >
+                              ✖
+                            </button>
+                          )}
+                          <p className="m-0 p-0">
+                            SL:{" "}
+                            {filterClicked
+                              ? index + 1
+                              : salary.findIndex((i) => i.id === row.id) + 1}
+                          </p>
+                          <p className="m-0 p-0">Teacher Name: {row.tname}</p>
+                          <p className="m-0 p-0">School Name: {row.school}</p>
+                          <p className="m-0 p-0">
+                            Gross Salary: {`₹ ${IndianFormat(row?.AllGross)}`}
+                          </p>
+                          {/*
+                          <p className="m-0 p-0">
+                            Gross 80C:{" "}
+                            {row?.limit80C !== 0
+                              ? `₹ ${IndianFormat(row?.limit80C)}`
+                              : "NIL"}
+                          </p>
+                          <p className="m-0 p-0">
+                            Gross 80D:{" "}
+                            {row?.Gross80D !== 0
+                              ? `₹ ${IndianFormat(row?.Gross80D)}`
+                              : "NIL"}
+                          </p>
+                          <p className="m-0 p-0">
+                            Taxable Income:{" "}
+                            {row?.TaxableIncome !== 0
+                              ? `₹ ${IndianFormat(row?.TaxableIncome)}`
+                              : "NIL"}
+                          </p>
+                          <p className="m-0 p-0">
+                            Net Tax OLD:{" "}
+                            {row?.NetTax !== 0
+                              ? `₹ ${IndianFormat(row?.NetTax)}`
+                              : "NIL"}
+                          </p>
+                          <p className="m-0 p-0">
+                            Net Tax NEW:{" "}
+                            {row?.AddedEduCess !== 0
+                              ? `₹ ${IndianFormat(row?.AddedEduCess)}`
+                              : "NIL"}
+                          </p> */}
+                          <div>
+                            {state === "admin" && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-info m-1 noprint"
+                                onClick={() => {
+                                  const fData = deductionState.filter(
+                                    (d) => d.id === row?.id,
+                                  )[0];
+                                  setTeacherDeduction(fData);
+                                  setShowDeductionForm(true);
+                                  setLoader(false);
+                                }}
+                              >
+                                Update Deduction
+                              </button>
+                            )}
+
+                            {/* remove icon placed at card top-right */}
+
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-success m-1 noprint"
+                              onClick={() => {
+                                const fData = teachersState.filter(
+                                  (teacher) => teacher?.id === row.id,
+                                )[0];
+                                calCulateOldIT(fData);
+                                setTeacherData(fData);
+                                setShowOldModal(true);
+                              }}
+                            >
+                              IT Old Regime
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-primary m-1 noprint"
+                              onClick={() => {
+                                const fData = teachersState.filter(
+                                  (teacher) => teacher?.id === row.id,
+                                )[0];
+                                calCulateNewIT(fData, prevYear);
+                                setTeacherData(fData);
+                                setShowNewModal(true);
+                              }}
+                            >
+                              IT New Regime
+                            </button>
+                            {state === "admin" && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-warning m-1 noprint"
+                                onClick={() => {
+                                  const fData = deductionState.filter(
+                                    (d) => d.id === row?.id,
+                                  )[0];
+                                  setShowBnkInt(true);
+                                }}
+                              >
+                                Update Bank Interest
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="my-3">
+              {showDeductionForm && (
+                <div
+                  className="modal fade show"
+                  tabIndex="-1"
+                  role="dialog"
+                  style={{ display: "block" }}
+                  aria-modal="true"
+                >
+                  <div className="modal-dialog modal-xl">
+                    <div className="modal-content">
+                      <div className="modal-header">
+                        <h1
+                          className="modal-title fs-5"
+                          id="staticBackdropLabel"
+                        >
+                          Set Deduction Data of {teacherDeduction.tname}
+                        </h1>
+                        <button
+                          type="button"
+                          className="btn-close"
+                          aria-label="Close"
+                          onClick={() => {
+                            setShowDeductionForm(false);
+                          }}
+                        ></button>
+                      </div>
+                      <div className="modal-body">
+                        <div className="col-md-6  mx-auto justify-content-center align-items-baseline">
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              LIC
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control mx-auto"
+                              placeholder="LIC"
+                              value={teacherDeduction.lic}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    lic: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    lic: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              PPF
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="PPF"
+                              value={teacherDeduction.ppf}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    ppf: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    ppf: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Homeloan Principal
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Homeloan Principal"
+                              value={teacherDeduction.hbLoanPrincipal}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    hbLoanPrincipal: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    hbLoanPrincipal: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Homeloan Interest
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Homeloan Interest"
+                              value={teacherDeduction.hbLoanInterest}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    hbLoanInterest: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    hbLoanInterest: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Mediclaim
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Mediclaim"
+                              value={teacherDeduction.mediclaim}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    mediclaim: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    mediclaim: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Sukanya
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Sukanya"
+                              value={teacherDeduction.sukanya}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    sukanya: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    sukanya: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              NSC
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="NSC"
+                              value={teacherDeduction.nsc}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    nsc: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    nsc: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Interest on NSC
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Interest on NSC"
+                              value={teacherDeduction.nscInterest}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    nscInterest: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    nscInterest: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Tution Fees
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Tution Fees"
+                              value={teacherDeduction.tutionFee}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    tutionFee: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    tutionFee: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              F.D. (5 Year)
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Tution Fees"
+                              value={teacherDeduction.fd}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    fd: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    fd: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Disabled dependent Treatment
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Disabled dependent Treatment"
+                              value={teacherDeduction.handicapTreatment}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    handicapTreatment: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    handicapTreatment: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Terminal Disease
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="terminal Disease"
+                              value={teacherDeduction.terminalDisease}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    terminalDisease: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    terminalDisease: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Education Loan Interest
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Education Loan Interest"
+                              value={teacherDeduction.educationLoan}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    educationLoan: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    educationLoan: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Disabled Teacher
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Disabled Teacher"
+                              value={teacherDeduction.disability}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    disability: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    disability: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Charity
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="Charity"
+                              value={teacherDeduction.charity}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    charity: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    charity: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              ULIP /ELSS
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="ULIP /ELSS"
+                              value={teacherDeduction.ulip}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    ulip: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    ulip: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              TDS Submitted
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control "
+                              placeholder="TDS Submitted"
+                              value={teacherDeduction.tds}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setTeacherDeduction({
+                                    ...teacherDeduction,
+                                    tds: parseInt(e.target.value),
+                                  });
+                                } else {
+                                  setTeacherDeduction({
+                                    tds: "",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-success"
+                          onClick={() => {
+                            updateTeacherDeduction();
+                          }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger"
+                          onClick={() => {
+                            setShowDeductionForm(false);
+                          }}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="my-3">
+              {showBnkInt && (
+                <div
+                  className="modal fade show"
+                  tabIndex="-1"
+                  role="dialog"
+                  style={{ display: "block" }}
+                  aria-modal="true"
+                >
+                  <div className="modal-dialog modal-xl">
+                    <div className="modal-content">
+                      <div className="modal-header">
+                        <h1
+                          className="modal-title fs-5"
+                          id="staticBackdropLabel"
+                        >
+                          Set Bank Interest Data of {teacherDeduction.tname}
+                        </h1>
+                        <button
+                          type="button"
+                          className="btn-close"
+                          aria-label="Close"
+                          onClick={() => {
+                            setShowBnkInt(false);
+                          }}
+                        ></button>
+                      </div>
+                      <div className="modal-body">
+                        <div className="col-md-6  mx-auto justify-content-center align-items-baseline">
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Savings Bank Interest
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control mx-auto"
+                              placeholder="Savings Bank Interest"
+                              value={BankInterest}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setBankInterest(parseInt(e.target.value));
+                                } else {
+                                  setBankInterest("");
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="mb-3 col-md-6 mx-auto">
+                            <label htmlFor="date" className="form-label">
+                              Interest from Deposit(Bank/Post Office/Cooperative
+                              Society)
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control mx-auto"
+                              placeholder="Interest from Deposit"
+                              value={IntFrDeposit}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  setIntFrDeposit(parseInt(e.target.value));
+                                } else {
+                                  setIntFrDeposit("");
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-success"
+                          onClick={() => {
+                            setShowBnkInt(false);
+                          }}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="my-3">
+              {showOldModal && (
+                <div
+                  className="modal fade show"
+                  tabIndex="-1"
+                  role="dialog"
+                  style={{ display: "block" }}
+                  aria-modal="true"
+                >
+                  <div className="modal-dialog modal-xl">
+                    <div className="modal-content">
+                      <div className="modal-header">
+                        <h1
+                          className="modal-title fs-5"
+                          id="staticBackdropLabel"
+                        >
+                          IT Statement OLD Regime of {TeacherData.tname}
+                        </h1>
+                        <button
+                          type="button"
+                          className="btn-close"
+                          aria-label="Close"
+                          onClick={() => {
+                            setShowOldModal(false);
+                            setShowForm16(false);
+                            setBankInterest(randBetween(1200, 2000));
+                            setIntFrDeposit(0);
+                          }}
+                        ></button>
+                      </div>
+                      <div className="modal-body">
+                        <div className="mx-auto noprint my-5">
+                          <PDFDownloadLink
+                            document={<IncomeTaxOld2025 data={oldITData} />}
+                            fileName={`${TeacherData.tname}_IT_Statement_OLD_${finYear}.pdf`}
+                            style={{
+                              textDecoration: "none",
+                              padding: "10px",
+                              color: "#fff",
+                              backgroundColor: "purple",
+                              border: "1px solid #4a4a4a",
+                              width: "40%",
+                              borderRadius: 10,
+                            }}
+                            onClick={() => {
+                              setTimeout(() => {
+                                setShowOldModal(false);
+                                setShowForm16(false);
+                                setBankInterest(randBetween(1200, 2000));
+                                setIntFrDeposit(0);
+                              }, 200);
+                            }}
+                          >
+                            {({ blob, url, loading, error }) =>
+                              loading
+                                ? "Please Wait..."
+                                : `Download ${finYear} IT Statement`
+                            }
+                          </PDFDownloadLink>
+                          <div className="my-5">
+                            <p className="my-1">
+                              Bank Interest : Rs.{" "}
+                              {IndianFormat(oldITData?.BankInterest)}
+                            </p>
+                            <p className="my-1">
+                              Income Tax : Rs.{" "}
+                              {IndianFormat(oldITData?.AddedEduCess)}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-success m-2"
+                          onClick={() => setShowForm16(!showForm16)}
+                        >
+                          {showForm16 ? "Hide Form 16" : "Show Form 16"}
+                        </button>
+                        {showForm16 && (
+                          <div className="mx-auto noprint my-5">
+                            <PDFDownloadLink
+                              document={<Form16New data={oldITData} />}
+                              fileName={`${TeacherData.tname}_Form16_OLD_${finYear}.pdf`}
+                              style={{
+                                textDecoration: "none",
+                                padding: "10px",
+                                color: "#fff",
+                                backgroundColor: "navy",
+                                border: "1px solid #4a4a4a",
+                                width: "40%",
+                                borderRadius: 10,
+                              }}
+                              onClick={() => {
+                                setTimeout(() => {
+                                  setShowOldModal(false);
+                                  setShowForm16(false);
+                                  setBankInterest(randBetween(1200, 2000));
+                                  setIntFrDeposit(0);
+                                }, 200);
+                              }}
+                            >
+                              {({ blob, url, loading, error }) =>
+                                loading
+                                  ? "Please Wait..."
+                                  : `Download Form 16 ${finYear}`
+                              }
+                            </PDFDownloadLink>
+                          </div>
+                        )}
+                      </div>
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger"
+                          onClick={() => {
+                            setShowOldModal(false);
+                            setShowForm16(false);
+                            setBankInterest(randBetween(1200, 2000));
+                            setIntFrDeposit(0);
+                          }}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="my-3">
+              {showNewModal && (
+                <div
+                  className="modal fade show"
+                  tabIndex="-1"
+                  role="dialog"
+                  style={{ display: "block" }}
+                  aria-modal="true"
+                >
+                  <div className="modal-dialog modal-xl">
+                    <div className="modal-content">
+                      <div className="modal-header">
+                        <h1
+                          className="modal-title fs-5"
+                          id="staticBackdropLabel"
+                        >
+                          IT Statement New Regime of {TeacherData.tname}
+                        </h1>
+                        <button
+                          type="button"
+                          className="btn-close"
+                          aria-label="Close"
+                          onClick={() => {
+                            setShowNewModal(false);
+                            setShowForm16New(false);
+                            setBankInterest(randBetween(1200, 2000));
+                            setIntFrDeposit(0);
+                          }}
+                        ></button>
+                      </div>
+                      <div className="modal-body">
+                        <div className="mx-auto noprint my-5">
+                          <PDFDownloadLink
+                            document={<IncomeTaxNew2025 data={newITData} />}
+                            fileName={`${TeacherData.tname}_IT_Statement_NEW_${finYear}.pdf`}
+                            style={{
+                              textDecoration: "none",
+                              padding: "10px",
+                              color: "#fff",
+                              backgroundColor: "purple",
+                              border: "1px solid #4a4a4a",
+                              width: "40%",
+                              borderRadius: 10,
+                            }}
+                            onClick={() => {
+                              setTimeout(() => {
+                                setShowNewModal(false);
+                                setShowForm16New(false);
+                                setBankInterest(randBetween(1200, 2000));
+                                setIntFrDeposit(0);
+                              }, 200);
+                            }}
+                          >
+                            {({ blob, url, loading, error }) =>
+                              loading
+                                ? "Please Wait..."
+                                : `Download ${finYear} IT Statement`
+                            }
+                          </PDFDownloadLink>
+                          <div className="my-5">
+                            <p className="my-1">
+                              Bank Interest : Rs.{" "}
+                              {IndianFormat(newITData?.BankInterest)}
+                            </p>
+                            <p className="my-1">
+                              Income Tax : Rs.{" "}
+                              {IndianFormat(newITData?.AddedEduCess)}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-success m-2"
+                          onClick={() => setShowForm16New(!showForm16New)}
+                        >
+                          {showForm16New ? "Hide Form 16" : "Show Form 16"}
+                        </button>
+                        {showForm16New && (
+                          <div className="mx-auto noprint my-5">
+                            <PDFDownloadLink
+                              document={<Form16NewRegime data={newITData} />}
+                              fileName={`${TeacherData.tname}_Form16_NEW_${finYear}.pdf`}
+                              style={{
+                                textDecoration: "none",
+                                padding: "10px",
+                                color: "#fff",
+                                backgroundColor: "navy",
+                                border: "1px solid #4a4a4a",
+                                width: "40%",
+                                borderRadius: 10,
+                              }}
+                              onClick={() => {
+                                setTimeout(() => {
+                                  setShowNewModal(false);
+                                  setShowForm16New(false);
+                                  setBankInterest(randBetween(1200, 2000));
+                                  setIntFrDeposit(0);
+                                }, 200);
+                              }}
+                            >
+                              {({ blob, url, loading, error }) =>
+                                loading
+                                  ? "Please Wait..."
+                                  : `Download Form 16 for ${finYear}`
+                              }
+                            </PDFDownloadLink>
+                          </div>
+                        )}
+                      </div>
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger"
+                          onClick={() => {
+                            setShowNewModal(false);
+                            setShowForm16New(false);
+                            setBankInterest(randBetween(1200, 2000));
+                            setIntFrDeposit(0);
+                          }}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary text-white font-weight-bold p-2 m-2 noprint rounded"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.print();
+                }
+              }}
+            >
+              Print
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

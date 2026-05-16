@@ -1,0 +1,848 @@
+"use client";
+import React, { useEffect, useState } from "react";
+import { useGlobalContext } from "../../context/Store";
+import { useRouter } from "next/navigation";
+import { ToastContainer, toast } from "react-toastify";
+import { firestore } from "../../context/FirebaseContext";
+import {
+  doc,
+  setDoc,
+  getDocs,
+  deleteDoc,
+  query,
+  collection,
+  updateDoc,
+} from "firebase/firestore";
+import {
+  getDownloadURL,
+  ref,
+  uploadBytesResumable,
+  deleteObject,
+} from "firebase/storage";
+import { storage } from "../../context/FirebaseContext";
+
+import AdminNavBar from "../../components/AdminNavBar";
+import { v4 as uuid } from "uuid";
+import Loader from "../../components/Loader";
+import { compareObjects } from "../../modules/calculatefunctions";
+import Image from "next/image";
+import {
+  deleteFileFromGithub,
+  uploadFileToGithub,
+} from "../../modules/gitFileHndler";
+const AdminUploadImage = () => {
+  const { state, slideState, setSlideState, setSlideUpdateTime } =
+    useGlobalContext();
+  const router = useRouter();
+  const docId = uuid();
+  const [loader, setLoader] = useState(false);
+  const [file, setFile] = useState(null);
+  const [editFile, setEditFile] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [inputField, setInputField] = useState({
+    title: "",
+    description: "",
+    url: null,
+  });
+  const [errInputField, setErrInputField] = useState({
+    errTitle: "",
+    errDescription: "",
+  });
+  const [editField, setEditField] = useState({
+    title: "",
+    url: null,
+    description: "",
+    id: "",
+    fileName: "",
+    cloudinaryUrl: null,
+  });
+  const [orgEditField, setorgEditField] = useState({
+    title: "",
+    url: null,
+    description: "",
+    id: "",
+    fileName: "",
+    cloudinaryUrl: null,
+  });
+  const [errEditField, setErrEditField] = useState({
+    errTitle: "",
+    errDescription: "",
+    errFile: "",
+  });
+  const [data, setData] = useState(false);
+  const [datas, setDatas] = useState([]);
+  const [folder, setFolder] = useState("galaryimages");
+  const [showImage, setShowImage] = useState(false);
+  const [imageData, setImageData] = useState({
+    title: "",
+    description: "",
+    url: null,
+    id: "",
+    fileName: "",
+    cloudinaryUrl: null,
+  });
+  const getData = async () => {
+    setLoader(true);
+    setData(true);
+    const q = query(collection(firestore, folder));
+
+    const querySnapshot = await getDocs(q);
+    const data = querySnapshot.docs.map((doc) => ({
+      // doc.data() is never undefined for query doc snapshots
+      ...doc.data(),
+      id: doc.id,
+    }));
+    setDatas(data);
+    setLoader(false);
+  };
+  const validForm = () => {
+    setErrInputField({
+      errTitle: "",
+      errDescription: "",
+    });
+    let isvalid = true;
+    if (inputField.title === "") {
+      setErrInputField((prev) => ({
+        prev,
+        errTitle: "Please Enter Valid Title",
+      }));
+      isvalid = false;
+    }
+    if (inputField.description === "") {
+      setErrInputField({
+        ...errInputField,
+        errDescription: "Please Enter Valid Description",
+      });
+      isvalid = false;
+    }
+    return isvalid;
+  };
+
+  const validEditForm = () => {
+    setErrEditField({
+      errTitle: "",
+      errDescription: "",
+      errFile: "",
+    });
+    let isvalid = true;
+    if (editField.title === "") {
+      setErrEditField((prev) => ({
+        prev,
+        errTitle: "Please Enter Valid Title",
+      }));
+      isvalid = false;
+    }
+    if (editField.description === "") {
+      setErrEditField({
+        ...errEditField,
+        errDescription: "Please Enter Valid Description",
+      });
+      isvalid = false;
+    }
+
+    if (compareObjects(editField, orgEditField)) {
+      if (editFile !== null) {
+        isvalid = true;
+      } else if (
+        (editField.title !== orgEditField.title ||
+          editField.description !== orgEditField.description) &&
+        editFile === null
+      ) {
+        isvalid = true;
+      } else {
+        isvalid = false;
+
+        setErrEditField({
+          ...errEditField,
+          errFile: "Please Select a File",
+        });
+      }
+    }
+    return isvalid;
+  };
+
+  const uploadFiles = async () => {
+    if (validForm()) {
+      if (file == null) {
+        toast.error("Upload File First!");
+        return;
+      } else {
+        setLoader(true);
+        const githubUrl = await uploadFileToGithub(file, file.name, folder);
+        const filestorageRef = ref(storage, `/${folder}/${file.name}`);
+        const uploadTask = uploadBytesResumable(filestorageRef, file);
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            const percent = Math.round(
+              (snapshot.bytesTransferred / snapshot.totalBytes) * 100,
+            );
+
+            // // update progress
+            setProgress(percent);
+          },
+          (err) => console.log(err),
+          () => {
+            getDownloadURL(uploadTask.snapshot.ref).then(async (url) => {
+              try {
+                await setDoc(doc(firestore, folder, docId), {
+                  title: inputField.title,
+                  description: inputField.description,
+                  url: url,
+                  githubUrl,
+                  id: docId,
+                  fileName: file.name,
+                });
+                if (folder === "slides") {
+                  setSlideState([
+                    ...slideState,
+                    {
+                      title: inputField.title,
+                      description: inputField.description,
+                      url: url,
+                      githubUrl,
+                      id: docId,
+                      fileName: file.name,
+                    },
+                  ]);
+                  setSlideUpdateTime(Date.now());
+                }
+                toast.success("Congrats! File Uploaded Successfully!");
+                setLoader(false);
+                setInputField({
+                  title: "",
+                  description: "",
+                  url: null,
+                });
+                setProgress(0);
+                setData(false);
+                setFile(null);
+                getData();
+                if (typeof window !== "undefined") {
+                  document.getElementById("file-upload").value = "";
+                  document.getElementById("progress-bar").style.width = 0;
+                }
+              } catch (e) {
+                toast.success("File Upload Failed!", {
+                  position: "top-right",
+                  autoClose: 1500,
+                  hideProgressBar: false,
+                  closeOnClick: true,
+
+                  draggable: true,
+                  progress: undefined,
+                  theme: "light",
+                });
+                setLoader(false);
+              }
+            });
+          },
+        );
+      }
+    }
+  };
+
+  const deleteFile = async (name, id) => {
+    setLoader(true);
+    const isDelFromGithub = await deleteFileFromGithub(name, folder);
+    if (isDelFromGithub) {
+      toast.success("File deleted successfully From Github!");
+    } else {
+      toast.error("Error Deleting File From Github!");
+    }
+    const desertRef = ref(storage, `${folder}/${name}`);
+    deleteObject(desertRef)
+      .then(async () => {
+        await deleteDoc(doc(firestore, folder, id));
+        toast.success("Image deleted successfully");
+        if (folder === "slides") {
+          setSlideState(slideState.filter((item) => item.id !== id));
+          setSlideUpdateTime(Date.now());
+        }
+        toast.success("Congrats! File Deleted Successfully!");
+        setLoader(false);
+        getData();
+      })
+      .catch((error) => {
+        setLoader(false);
+        // Uh-oh, an error occurred!
+        toast.error("Something Went Wrong!");
+        console.log(error);
+      });
+  };
+
+  const updateSlide = async () => {
+    if (validEditForm()) {
+      setLoader(true);
+      if (editFile) {
+        try {
+          const isDelFromGithub = await deleteFileFromGithub(
+            editField.fileName,
+            folder,
+          );
+          if (isDelFromGithub) {
+            toast.success("File deleted successfully From Github!");
+          } else {
+            toast.error("Error Deleting File From Github!");
+          }
+          const desertRef = ref(storage, `${folder}/${editField.fileName}`);
+          await deleteObject(desertRef);
+          const githubUrl = await uploadFileToGithub(
+            editFile,
+            editFile.name,
+            folder,
+          );
+          const filestorageRef = ref(storage, `/${folder}/${editFile.name}`);
+          const uploadTask = uploadBytesResumable(filestorageRef, editFile);
+          uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+              const percent = Math.round(
+                (snapshot.bytesTransferred / snapshot.totalBytes) * 100,
+              );
+
+              // // update progress
+              setProgress(percent);
+            },
+            (err) => console.log(err),
+            () => {
+              // download url
+              getDownloadURL(uploadTask.snapshot.ref).then(async (url) => {
+                // console.log(url);
+                try {
+                  await updateDoc(doc(firestore, folder, editField.id), {
+                    title: editField.title,
+                    description: editField.description,
+                    url: url,
+                    githubUrl,
+                    fileName: editFile.name,
+                  });
+                  if (folder === "slides") {
+                    let x = slideState.filter(
+                      (el) => el.id === editField.id,
+                    )[0];
+                    x.title = editField.title;
+                    x.description = editField.description;
+                    x.url = url;
+                    x.fileName = editFile.name;
+                    let y = slideState.filter((el) => el.id !== editField.id);
+                    y = [...y, x];
+                    setSlideState(y);
+                    setSlideUpdateTime(Date.now());
+                  }
+                  toast.success("Congrats! File Uploaded Successfully!");
+                  setLoader(false);
+                  setInputField({
+                    title: "",
+                    description: "",
+                    url: null,
+                  });
+                  setData(false);
+                  setFile(null);
+                  getData();
+                  if (typeof window !== "undefined") {
+                    // browser code
+                    document.getElementById("file-upload").value = "";
+                    document.getElementById("progress-bar").style.width = 0;
+                  }
+                } catch (e) {
+                  console.log(e);
+                  toast.success("File Upload Failed!", {
+                    position: "top-right",
+                    autoClose: 1500,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+
+                    draggable: true,
+                    progress: undefined,
+                    theme: "light",
+                  });
+                  setLoader(false);
+                }
+              });
+            },
+          );
+        } catch (error) {
+          console.log(error);
+          setLoader(false);
+          toast.error("Failed to Update Slide Image!");
+          setEditField({
+            title: "",
+            description: "",
+            url: null,
+            id: "",
+            fileName: "",
+            cloudinaryUrl: null,
+          });
+          if (typeof window !== "undefined") {
+            // browser code
+            document.getElementById("file-upload").value = "";
+          }
+        }
+      } else {
+        try {
+          await updateDoc(doc(firestore, folder, editField.id), {
+            title: editField.title,
+            description: editField.description,
+          });
+          if (folder === "slides") {
+            let x = slideState.filter((el) => el.id === editField.id)[0];
+            x.title = editField.title;
+            x.description = editField.description;
+            let y = slideState.filter((el) => el.id !== editField.id);
+            y = [...y, x];
+            setSlideState(y);
+            setSlideUpdateTime(Date.now());
+          }
+          toast.success("Congrats! File Uploaded Successfully!");
+          setLoader(false);
+          setInputField({
+            title: "",
+            description: "",
+            url: null,
+          });
+          setData(false);
+          setFile(null);
+          getData();
+          if (typeof window !== "undefined") {
+            // browser code
+            document.getElementById("file-upload").value = "";
+            document.getElementById("progress-bar").style.width = 0;
+          }
+        } catch (e) {
+          console.log(e);
+          toast.success("File Upload Failed!");
+          setLoader(false);
+        }
+      }
+    } else {
+      toast.error("Please Fill All Fields or No Changes Detected!");
+      console.log(validEditForm(), "Edit Field");
+      console.log(!compareObjects(editField, orgEditField), "Compare Object");
+      console.log(editFile !== null, "EditFile");
+    }
+  };
+  useEffect(() => {
+    document.title =
+      "Amta West Circle Primary Teachers' Association:Admin Upload Image";
+    if (state !== "admin") {
+      router.push("/login");
+    }
+    // eslint-disable-next-line
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line
+  }, [inputField, progress, folder]);
+
+  return (
+    <>
+      <ToastContainer
+        position="top-right"
+        autoClose={1500}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover={false}
+        theme="light"
+      />
+      <AdminNavBar />
+      <h3 className="text-center text-primary my-3">Admin Upload Images</h3>
+      <div className="container my-3">
+        <div className="mx-auto">
+          {loader ? <Loader /> : null}
+
+          <div className="col-md-6 mx-auto">
+            <div className="mb-3">
+              <h5 className="text-center text-primary mb-3">
+                Select Folder Name
+              </h5>
+              <div className="col-md-6 mx-auto mb-3">
+                <select
+                  className="form-select"
+                  defaultValue={folder}
+                  onChange={(e) => {
+                    setFolder(e.target.value);
+                  }}
+                  aria-label="Default select example"
+                >
+                  <option value="">Select Folder Name</option>
+                  <option value="galaryimages">Galary Images</option>
+                  <option value="slides">Homepage Slides</option>
+                  <option value="profileImage">Profile Images</option>
+                  <option value="images">Images</option>
+                  <option value="otherimages">Other Images</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter Title"
+                  value={inputField.title}
+                  onChange={(e) =>
+                    setInputField({ ...inputField, title: e.target.value })
+                  }
+                />
+                {errInputField.errTitle.length > 0 && (
+                  <span className="error">{errInputField.errTitle}</span>
+                )}
+              </div>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter Description"
+                  value={inputField.description}
+                  onChange={(e) =>
+                    setInputField({
+                      ...inputField,
+                      description: e.target.value,
+                    })
+                  }
+                />
+                {errInputField.errDescription.length > 0 && (
+                  <span className="error">{errInputField.errDescription}</span>
+                )}
+              </div>
+              <h5 className="text-center text-primary mb-3">Select Image</h5>
+              <input
+                type="file"
+                id="file-upload"
+                className="form-control"
+                placeholder="Upload Document"
+                onChange={(e) => setFile(e.target.files[0])}
+              />
+            </div>
+            {file && (
+              <img
+                src={file ? URL.createObjectURL(file) : ""}
+                alt="img"
+                style={{ width: "40vw", height: "auto" }}
+              />
+            )}
+            <div
+              className="progress-bar my-3"
+              id="progress-bar"
+              style={{
+                width: progress + "%",
+                height: "15px",
+                backgroundColor: "purple",
+                borderRadius: "10px",
+                transformOrigin: "start",
+              }}
+            ></div>
+            <div className="my-3">
+              <button
+                type="button"
+                className="btn btn-success my-3"
+                onClick={uploadFiles}
+              >
+                Upload Image
+              </button>
+            </div>
+          </div>
+          <div className="container">
+            {!data ? (
+              <button
+                type="button"
+                className="btn btn-success mb-3"
+                onClick={getData}
+              >
+                Get Uploaded Images
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-success mb-3"
+                onClick={() => setData(false)}
+              >
+                Hide Uploaded Files
+              </button>
+            )}
+            {data ? (
+              <div className="container overflow-auto  d-flex">
+                <table className="table table-responsive table-hover table-striped table-success">
+                  <thead>
+                    <tr>
+                      <th>Sl</th>
+                      <th>Title</th>
+                      <th>Description</th>
+                      <th>Thumbnail</th>
+                      <th>Download</th>
+                      {folder === "slides" && <th>Edit Slide</th>}
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {datas.map((el, ind) => {
+                      return (
+                        <tr key={ind}>
+                          <td>{ind + 1}</td>
+                          <td>{el.title}</td>
+                          <td>{el.description}</td>
+                          <td>
+                            <Image
+                              src={el.githubUrl}
+                              alt="thumbnail"
+                              width={100}
+                              height={100}
+                              style={{
+                                width: "50px",
+                                height: "50px",
+                                cursor: "pointer",
+                              }}
+                              onClick={() => {
+                                setImageData(el);
+                                setShowImage(true);
+                              }}
+                            />
+                          </td>
+
+                          <td>
+                            <a
+                              href={el.url}
+                              className="btn btn-success rounded text-decoration-none"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ fontSize: 10 }}
+                            >
+                              Download
+                            </a>
+                          </td>
+                          {folder === "slides" && (
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-warning"
+                                data-bs-toggle="modal"
+                                data-bs-target="#staticBackdrop"
+                                onClick={() => {
+                                  setEditField(el);
+                                  setorgEditField(el);
+                                  console.log(el);
+                                }}
+                                style={{ fontSize: 10 }}
+                              >
+                                Edit
+                              </button>
+                            </td>
+                          )}
+                          <td>
+                            {folder !== "profileImage" && (
+                              <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={() => {
+                                  deleteFile(
+                                    el.fileName,
+                                    el.id,
+                                    el.cloudinaryUrl,
+                                  );
+                                }}
+                                style={{ fontSize: 10 }}
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      <div
+        className="modal fade"
+        id="staticBackdrop"
+        data-bs-backdrop="static"
+        data-bs-keyboard="false"
+        tabIndex="-1"
+        aria-labelledby="staticBackdropLabel"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h1 className="modal-title fs-5" id="staticBackdropLabel">
+                Edit Slide Photos
+              </h1>
+              <button
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div className="modal-body">
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter Title"
+                  value={editField.title}
+                  onChange={(e) =>
+                    setEditField({ ...editField, title: e.target.value })
+                  }
+                />
+              </div>
+              {errEditField.errTitle.length > 0 && (
+                <span className="error">{errEditField.errTitle}</span>
+              )}
+              <div className="mb-3">
+                <textarea
+                  className="form-control"
+                  placeholder="Enter Description"
+                  value={editField.description}
+                  onChange={(e) =>
+                    setEditField({ ...editField, description: e.target.value })
+                  }
+                  cols="30"
+                  rows="5"
+                ></textarea>
+              </div>
+              {errEditField.errDescription.length > 0 && (
+                <span className="error">{errEditField.errDescription}</span>
+              )}
+              <div className="mb-3">
+                <input
+                  type="file"
+                  id="edit_file_upload"
+                  className="form-control"
+                  placeholder="Upload Document"
+                  onChange={(e) => setEditFile(e.target.files[0])}
+                />
+                <div className="m-2">
+                  {editFile && (
+                    <img
+                      src={URL.createObjectURL(editFile)}
+                      alt="thumbnail"
+                      style={{ width: "100px", height: "100px" }}
+                    />
+                  )}
+                  {!editFile && (
+                    <img
+                      src={orgEditField.githubUrl}
+                      alt="thumbnail"
+                      style={{ width: "200px", height: "100px" }}
+                    />
+                  )}
+                </div>
+              </div>
+              {errEditField.errFile.length > 0 && (
+                <span className="error">{errEditField.errFile}</span>
+              )}
+              <div
+                className="progress-bar mb-3"
+                style={{
+                  width: progress + "%",
+                  height: "15px",
+                  backgroundColor: "purple",
+                  borderRadius: "10px",
+                  transformOrigin: "start",
+                }}
+              ></div>
+              <div className="mb-3">
+                <button
+                  type="button"
+                  className="btn btn-success m-2"
+                  onClick={updateSlide}
+                  data-bs-dismiss="modal"
+                >
+                  Update Image
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary m-2"
+                  data-bs-dismiss="modal"
+                  onClick={() => {
+                    setEditField({
+                      title: "",
+                      url: null,
+                      description: "",
+                      id: "",
+                      fileName: "",
+                      cloudinaryUrl: null,
+                    });
+                    setorgEditField({
+                      title: "",
+                      url: null,
+                      description: "",
+                      id: "",
+                      fileName: "",
+                      cloudinaryUrl: null,
+                    });
+                    setEditFile(null);
+                    setProgress(0);
+                    if (document.getElementById("edit_file_upload")) {
+                      document.getElementById("edit_file_upload").value = "";
+                    }
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {showImage && (
+        <div
+          className="modal fade show"
+          tabIndex="-1"
+          role="dialog"
+          style={{ display: "block" }}
+          aria-modal="true"
+        >
+          <div className="modal-dialog modal-xl">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h1 className="modal-title fs-5" id="staticBackdropLabel">
+                  {imageData?.title}
+                </h1>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={() => {
+                    setShowImage(false);
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <Image
+                  src={imageData.githubUrl}
+                  width={400}
+                  height={100}
+                  alt="profilePhoto"
+                  className="img-fluid rounded border p-1"
+                  style={{ maxHeight: "400px", width: "auto" }}
+                />
+                <h4 className="m-2">{imageData.description}</h4>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn m-3 btn-sm btn-danger"
+                  onClick={() => {
+                    setShowImage(false);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default AdminUploadImage;
