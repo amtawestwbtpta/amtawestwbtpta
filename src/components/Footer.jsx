@@ -199,7 +199,7 @@ const Footer = () => {
 
         <div className="d-inline-block m-2 text-decoration-none text-primary">
           <i className="bi bi-android2"></i>{" "}
-          <GoogleDriveDownload fileId={AndroidAppLink} text="Our Android App" />
+          {/* <GoogleDriveDownload fileId={AndroidAppLink} text="Our Android App" /> */}
         </div>
       </div>
       {/* {showLoader && <Loader />} */}

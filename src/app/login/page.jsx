@@ -259,11 +259,11 @@ const page = () => {
               <span className="error">{errField.passwordErr}</span>
             )}
           </div>
-          <div className="mb-3">
+          {/* <div className="mb-3">
             <Link style={{ textDecoration: "none" }} href={"/forgotPassword"}>
               Forgot Username or Password?
             </Link>
-          </div>
+          </div> */}
           <div>
             <button
               type="submit"
@@ -272,14 +272,14 @@ const page = () => {
             >
               Login <i className="bi bi-box-arrow-in-left"></i>
             </button>
-            <button
+            {/* <button
               type="button"
               id="addUserBtn"
               className="btn btn-success m-1"
               onClick={addUser}
             >
               Register Now <i className="bi bi-person-add"></i>
-            </button>
+            </button> */}
           </div>
         </form>
       </div>

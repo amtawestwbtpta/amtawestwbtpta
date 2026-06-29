@@ -100,7 +100,7 @@ export default function RootLayout({ children }) {
         lang="en"
         data-scroll-behavior="smooth"
       >
-        <AppLink />
+        {/* <AppLink /> */}
         <GlobalContextProvider>
           <Navbar />
           <div className="my-3">{children}</div>

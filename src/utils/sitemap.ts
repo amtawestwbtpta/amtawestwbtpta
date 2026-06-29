@@ -15,7 +15,6 @@ export async function GET() {
     "dashboard",
     "displaycomplain",
     "displaydatabase",
-    "downloadOsmsPayslip",
     "downloads",
     "downloadWBTPTAPayslip",
     "EditTeacher",
@@ -42,7 +41,6 @@ export async function GET() {
     "MonthlyAWSalary",
     "monthlyDAArrear",
     "Notification",
-    "paysliposmsNew",
     "payslipwbtpta",
     "payslipwbtptaNew",
     "PrintQuestionAll",
@@ -55,7 +53,6 @@ export async function GET() {
     "Ropa2019",
     "schoolteacherdata",
     "SchoolTeacherDataUnlog",
-    "signup",
     "sitemap.xml",
     "taxcalculator",
     "teacherAddress",
@@ -66,8 +63,6 @@ export async function GET() {
     "TeacherServiceLife",
     "TechersAccuitance",
     "techsalary",
-    "updateunp",
-    "update_self",
     "ViewDetails",
     "YearWiseTeachers",
   ]; // Add actual paths
@@ -80,7 +75,7 @@ export async function GET() {
     <url>
       <loc>${baseUrl}/${page}</loc>
       <lastmod>${new Date().toISOString()}</lastmod>
-    </url>`
+    </url>`,
     )
     .join("")}
 </urlset>`;

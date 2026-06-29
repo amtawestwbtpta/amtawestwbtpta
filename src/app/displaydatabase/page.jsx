@@ -527,7 +527,7 @@ const DisplayDatabase = () => {
                             .join("-")}
                         </h5>
                       )}
-                      <button
+                      {/* <button
                         type="button"
                         className="btn m-3 btn-danger"
                         onClick={() => {
@@ -541,8 +541,8 @@ const DisplayDatabase = () => {
                         }}
                       >
                         Delete
-                      </button>
-                      {userField.disabled ? (
+                      </button> */}
+                      {/* {userField.disabled ? (
                         <button
                           type="button"
                           className="btn m-3 btn-sm btn-success"
@@ -607,8 +607,8 @@ const DisplayDatabase = () => {
                         >
                           Make Admin
                         </button>
-                      )}
-                      {!compare(
+                      )} */}
+                      {/* {!compare(
                         userField.pan.toLowerCase(),
                         userField.password,
                       ) ? (
@@ -631,7 +631,7 @@ const DisplayDatabase = () => {
                         <h6 className="text-primary">
                           Password Need not to be Reset
                         </h6>
-                      )}
+                      )} */}
                     </div>
                   </div>
                   <div className="modal-footer">

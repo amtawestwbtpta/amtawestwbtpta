@@ -69,7 +69,7 @@ const Downloads = () => {
               </tr>
             </thead>
             <tbody>
-              <tr>
+              {/* <tr>
                 <td>1</td>
                 <td>Our Android App</td>
                 <td>APK</td>
@@ -81,11 +81,11 @@ const Downloads = () => {
                     className="btn btn-success rounded text-decoration-none"
                   />
                 </td>
-              </tr>
+              </tr> */}
               {allData.map((el, ind) => {
                 return (
                   <tr key={ind}>
-                    <td>{ind + 2}</td>
+                    <td>{ind + 1}</td>
                     <td>{el.fileName.toUpperCase()}</td>
                     <td>
                       {el.fileType === "application/pdf"
