@@ -23,9 +23,6 @@ export async function POST(request: NextRequest) {
       doj,
       dojnow,
       dor,
-      bank,
-      account,
-      ifsc,
       empid,
       training,
       pan,
@@ -57,9 +54,6 @@ export async function POST(request: NextRequest) {
       doj,
       dojnow,
       dor,
-      bank,
-      account,
-      ifsc,
       empid,
       training,
       pan,
@@ -80,7 +74,7 @@ export async function POST(request: NextRequest) {
         message: "Teacher saved successfully",
         success: true,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

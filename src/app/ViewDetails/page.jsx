@@ -33,9 +33,6 @@ const ViewDetails = () => {
     doj,
     dojnow,
     dor,
-    bank,
-    account,
-    ifsc,
     empid,
     training,
     pan,
@@ -119,34 +116,7 @@ const ViewDetails = () => {
         console.log(e);
       });
   };
-  const ifsc_ser = () => {
-    fetch(`https://ifsc.razorpay.com/${ifsc}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (typeof window !== undefined) {
-          document.getElementById("ifsc").innerHTML =
-            "<P>Bank Details<br>Bank Name: " +
-            data.BANK +
-            "<br/>" +
-            "Branch: " +
-            data.BRANCH +
-            "<br/>" +
-            "Address: " +
-            data.ADDRESS +
-            "<br/>" +
-            "IFSC: " +
-            data.IFSC +
-            "<br/>" +
-            "MICR: " +
-            data.MICR +
-            "<br/></p>";
-        }
-      });
-  };
-  useEffect(() => {
-    ifsc_ser();
-    // eslint-disable-next-line
-  }, []);
+
   return (
     <div className="container my-5 text-center d-flex flex-column justify-content-center">
       <ToastContainer
@@ -347,28 +317,6 @@ const ViewDetails = () => {
           </div>
         </div>
 
-        <div className="bg-light rounded shadow-sm d-flex flex-column justify-content-evenly text-center col-md-3 m-2 p-2">
-          <div>
-            <label>BANK: </label>
-          </div>
-          <div>
-            <p>{bank}</p>
-          </div>
-        </div>
-
-        <div className="bg-light rounded shadow-sm d-flex flex-column justify-content-evenly text-center col-md-3 m-2 p-2">
-          <div>
-            <label>Account No: </label>
-          </div>
-          <div>
-            <p>{account}</p>
-          </div>
-        </div>
-
-        <div
-          className="bg-light rounded shadow-sm d-flex flex-column justify-content-evenly text-center col-md-3 m-2 p-2"
-          id="ifsc"
-        ></div>
         {question === "admin" ? (
           <div className="bg-light rounded shadow-sm d-flex flex-column justify-content-evenly text-center col-md-3 m-2 p-2">
             <div>

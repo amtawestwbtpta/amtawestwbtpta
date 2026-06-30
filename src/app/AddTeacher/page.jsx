@@ -56,9 +56,6 @@ const AddTeacher = () => {
     doj: getSubmitDateSlashInput(new Date().toLocaleDateString()),
     dojnow: getSubmitDateSlashInput(new Date().toLocaleDateString()),
     dor: "01-01-2050",
-    bank: "",
-    account: "",
-    ifsc: "",
     empid: generateID(),
     training: "TRAINED",
     pan: "",
@@ -89,9 +86,6 @@ const AddTeacher = () => {
     errdoj: "",
     errdojnow: "",
     errdor: "",
-    errbank: "",
-    erraccount: "",
-    errifsc: "",
     errempid: "",
     errtraining: "",
     errpan: "",
@@ -100,32 +94,7 @@ const AddTeacher = () => {
     errhoi: "",
     errservice: "",
   });
-  const ifsc_ser = (ifsc) => {
-    if (ifsc.length === 11) {
-      fetch(`https://ifsc.razorpay.com/${ifsc}`)
-        .then((res) => res.json())
-        .then((data) => {
-          document.getElementById("bankdiv").innerHTML =
-            "<p>Bank Details<br>Bank Name: " +
-            data.BANK +
-            "<br/>" +
-            "Branch: " +
-            data.BRANCH +
-            "<br/>" +
-            "Address: " +
-            data.ADDRESS +
-            "<br/>" +
-            "IFSC: " +
-            data.IFSC +
-            "<br/>" +
-            "MICR: " +
-            data.MICR +
-            "<br/></p>";
-        });
-    } else {
-      document.getElementById("bankdiv").innerHTML = "";
-    }
-  };
+
   const formHandler = (e) => {
     setInputField({ ...inputField, [e.target.name]: e.target.value });
   };
@@ -149,9 +118,6 @@ const AddTeacher = () => {
       errdoj: "",
       errdojnow: "",
       errdor: "",
-      errbank: "",
-      erraccount: "",
-      errifsc: "",
       errempid: "",
       errtraining: "",
       errpan: "",
@@ -244,28 +210,6 @@ const AddTeacher = () => {
       setErrField((prevState) => ({
         ...prevState,
         erremail: "Please Enter Valid Email",
-      }));
-    }
-    if (inputField.bank === "") {
-      formIsValid = false;
-      setErrField((prevState) => ({
-        ...prevState,
-        errbank: "Please Enter Bank",
-      }));
-    }
-    if (inputField.account === "") {
-      formIsValid = false;
-      setErrField((prevState) => ({
-        ...prevState,
-        erraccount: "Please Enter Account",
-      }));
-    }
-
-    if (inputField.ifsc === "") {
-      formIsValid = false;
-      setErrField((prevState) => ({
-        ...prevState,
-        errifsc: "Please Enter IFSC",
       }));
     }
 
@@ -409,9 +353,6 @@ const AddTeacher = () => {
       errdoj: "",
       errdojnow: "",
       errdor: "",
-      errbank: "",
-      erraccount: "",
-      errifsc: "",
       errempid: "",
       errtraining: "",
       errpan: "",
@@ -438,9 +379,6 @@ const AddTeacher = () => {
       doj: getSubmitDateSlashInput(new Date().toLocaleDateString()),
       dojnow: getSubmitDateSlashInput(new Date().toLocaleDateString()),
       dor: "01-01-2050",
-      bank: "",
-      account: "",
-      ifsc: "",
       empid: generateID(),
       training: "TRAINED",
       pan: "",
@@ -823,63 +761,7 @@ const AddTeacher = () => {
                     <label className="form-label">Date Of Retirement:</label>
                     <h6>{inputField.dor}</h6>
                   </div>
-                  <div className="mb-3 col-md-3">
-                    <label className="form-label">Bank Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="bank"
-                      name="bank"
-                      placeholder="Bank"
-                      value={inputField.bank}
-                      onChange={(e) =>
-                        setInputField({
-                          ...inputField,
-                          bank: e.target.value.toUpperCase(),
-                        })
-                      }
-                    />
-                    {errField.errbank.length > 0 && (
-                      <span className="error">{errField.errbank}</span>
-                    )}
-                  </div>
-                  <div className="mb-3 col-md-3">
-                    <label className="form-label">Salary Account No.</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="account"
-                      name="account"
-                      placeholder="Salary Account No."
-                      value={inputField.account}
-                      onChange={formHandler}
-                    />
-                    {errField.errbank.length > 0 && (
-                      <span className="error">{errField.errbank}</span>
-                    )}
-                  </div>
-                  <div className="mb-3 col-md-3">
-                    <label className="form-label">IFSC CODE</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="ifsc_inp"
-                      name="ifsc"
-                      maxLength={11}
-                      placeholder="IFSC CODE"
-                      value={inputField.ifsc}
-                      onChange={(e) => {
-                        setInputField({
-                          ...inputField,
-                          ifsc: e.target.value.toUpperCase(),
-                        });
-                        ifsc_ser(e.target.value.toUpperCase());
-                      }}
-                    />
-                    {errField.errifsc.length > 0 && (
-                      <span className="error">{errField.errifsc}</span>
-                    )}
-                  </div>
+
                   <div
                     className="mb-3 col-md-3 text-primary text-center"
                     id="bankdiv"

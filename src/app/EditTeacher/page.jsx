@@ -152,30 +152,7 @@ const EditTeacher = () => {
     }
     // eslint-disable-next-line
   }, []);
-  useEffect(() => {
-    fetch(`https://ifsc.razorpay.com/${stateObject.ifsc}`)
-      .then((res) => res.json())
-      .then((data) => {
-        document.getElementById("bankdiv").innerHTML =
-          "<p>Bank Details<br>Bank Name: " +
-          data.BANK +
-          "<br/>" +
-          "Branch: " +
-          data.BRANCH +
-          "<br/>" +
-          "Address: " +
-          data.ADDRESS +
-          "<br/>" +
-          "IFSC: " +
-          data.IFSC +
-          "<br/>" +
-          "MICR: " +
-          data.MICR +
-          "<br/></p>";
-      })
-      .catch((err) => console.log(err));
-    //eslint-disable-next-line
-  }, []);
+
   return (
     <div className="container">
       <ToastContainer
@@ -690,62 +667,7 @@ const EditTeacher = () => {
             required
           />
         </div>
-        <div className="mb-3 col-md-3">
-          <label className="form-label">Bank Name</label>
-          <input
-            type="text"
-            className="form-control"
-            id="bank"
-            name="bank"
-            placeholder="Bank"
-            value={inputField?.bank}
-            onChange={(e) => {
-              setInputField({
-                ...inputField,
-                bank: e.target.value,
-              });
-            }}
-          />
-        </div>
-        <div className="mb-3 col-md-3">
-          <label className="form-label">Salary Account No.</label>
-          <input
-            type="text"
-            className="form-control"
-            id="account"
-            name="account"
-            placeholder="Salary Account No."
-            value={inputField?.account}
-            onChange={(e) => {
-              setInputField({
-                ...inputField,
-                account: e.target.value,
-              });
-            }}
-          />
-        </div>
-        <div className="mb-3 col-md-3">
-          <label className="form-label">IFSC CODE</label>
-          <input
-            type="text"
-            className="form-control"
-            id="ifsc_inp"
-            name="ifsc"
-            placeholder="IFSC CODE"
-            value={inputField?.ifsc}
-            onChange={(e) => {
-              setInputField({
-                ...inputField,
-                ifsc: e.target.value,
-              });
-            }}
-          />
-        </div>
-        <div
-          className="mb-3 col-md-3 text-primary text-center"
-          id="bankdiv"
-          style={{ fontSize: "13px" }}
-        ></div>
+
         <div className="mb-3 col-md-3">
           <label className="form-label">Employee ID</label>
           <input
